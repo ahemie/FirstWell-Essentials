@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FirstWell Essentials · Data Management</title>
+<link rel="stylesheet" href="/assets/css/upload.css">
+<link rel="stylesheet" href="/assets/css/shell.css">
+<link rel="stylesheet" href="/assets/css/weekly-sales.css">
+</head>
+<body data-page="upload">
+<header class="fs-header"><div class="fs-header-inner"><div class="fs-brand"><span class="fs-logo"><img src="/assets/images/firstwell-essentials.png" alt="FirstWell Essentials logo" class="fs-company-logo"></span><div><strong>FirstWell <span>Essentials</span></strong><small>Inventory &amp; Business Insights</small></div></div><div class="fs-header-side"><span class="fs-indicator"><i></i> Staff workspace</span><span id="asof" class="fs-asof"></span></div></div></header>
+<nav class="site-nav fs-nav" aria-label="Pages"></nav>
+<script src="/assets/js/nav.js"></script>
+<main>
+  <div class="hero"><div><span class="eyebrow">Data management</span><h1>Upload & manage data</h1><p class="sub">Monthly reports or weekly sales · One Excel file at a time · Preview before saving · Supabase-backed</p></div><span class="tag">● Protected staff workspace</span></div>
+  <div class="ws-tabs" role="tablist" aria-label="Upload type">
+    <button type="button" role="tab" id="tabBtnMonthly" aria-selected="true" aria-controls="tab-monthly">Monthly reports <small>Inventory · Clinic · Shopee · Prices</small></button>
+    <button type="button" role="tab" id="tabBtnWeekly" aria-selected="false" aria-controls="tab-weekly">Weekly sales <small>Shopee MY/SG · Clinic units · no inventory</small></button>
+  </div>
+  <div id="tab-monthly" role="tabpanel">
+  <details class="panel guide" open>
+    <summary><strong>How to upload (read first)</strong></summary>
+    <ol class="guide-steps">
+      <li><b>Upload the Inventory Report first</b> for the month. Clinic Movement needs it for selling prices.</li>
+      <li>Then upload the other files for that month in any order: Clinic Movement, Shopee MY and SG Sales, Listing Prices.</li>
+      <li>Always choose the <b>Report type</b> yourself. Do not use "Detect automatically" for Shopee files, or MY can be saved as SG.</li>
+      <li>Press <b>Preview</b>. Nothing is saved until you tick the box and confirm.</li>
+      <li>Saved the wrong file? Use <b>🗑 Delete</b> in "Recent Supabase imports" at the bottom, then upload again.</li>
+    </ol>
+    <div class="tablewrap"><table class="guide-table"><thead><tr><th>Report type</th><th>Which file</th><th>Reporting month</th><th>Snapshot date</th></tr></thead><tbody>
+      <tr><td>Avixo Inventory</td><td>Inventory_Report_… (export on the last day of the month, or the 1st of the next month)</td><td>The month that just ended. A report dated 1 Nov is <b>October</b>.</td><td>Leave empty</td></tr>
+      <tr><td>Clinic Movement</td><td>Inventory_Movement_Report_… (From/To must cover the whole month)</td><td>Same month as the From/To dates</td><td>Leave empty</td></tr>
+      <tr><td>Shopee MY Sales</td><td>parentskudetail.…_my.xlsx</td><td>Month in the file name</td><td>Leave empty</td></tr>
+      <tr><td>Shopee SG Sales</td><td>parentskudetail.…_sg.xlsx</td><td>Month in the file name</td><td>Leave empty</td></tr>
+      <tr><td>Shopee MY / SG Listing Prices</td><td>mass_update_sales_info_…</td><td>Month the prices were exported</td><td><b>Required</b>: date you exported the file</td></tr>
+    </tbody></table></div>
+  </details>
+  <div class="grid">
+    <section class="panel">
+      <h2>Upload a report</h2><p class="sub">Select the reporting month, choose the original Excel file, and check the proposed changes. Nothing is written until you confirm.</p>
+      <form id="uploadForm">
+        <div class="fieldgrid">
+          <div><label for="month">Reporting month</label><input id="month" type="month" required></div>
+          <div><label for="kind">Report type</label><select id="kind"><option value="auto">Detect automatically</option><option value="inventory">Avixo Inventory</option><option value="movement">Clinic Movement</option><option value="my_perf">Shopee MY Sales</option><option value="sg_perf">Shopee SG Sales</option><option value="my_price">Shopee MY Listing Prices</option><option value="sg_price">Shopee SG Listing Prices</option></select><p class="fine" id="kindHelp"></p></div>
+          <div class="fieldwide"><label for="file">Original Excel report (.xlsx)</label><input id="file" type="file" accept=".xlsx" required><p class="fine">Maximum 35 MB. Original Shopee performance and mass-update exports are supported.</p></div>
+          <div class="fieldwide" id="clinicPricingField">
+            <label for="clinic_price_mode">Clinic movement: selling-price source</label>
+            <select id="clinic_price_mode">
+              <option value="historical">Historical prices only (default; revenue may be unavailable)</option>
+              <option value="latest">Use latest Inventory Report → Price (estimated revenue)</option>
+            </select>
+            <p class="fine"><b>Only used for Clinic Movement.</b> Clinic Movement has units sold but no prices, so revenue = units sold × the Price column of an Avixo Inventory Report.<br>
+<b>Historical</b>: use the Inventory Report of that month (exported on the last day or the 1st of next month). Use this when you already uploaded that month's Inventory Report.<br>
+<b>Use latest</b>: use the newest Inventory Report for every product. Revenue is only an estimate because prices may have changed. Use this only when that month has no Inventory Report.<br>
+Prices always come from the Price column, never Cost Price.</p>
+          </div>
+          <div class="fieldwide"><details><summary>Dates and advanced options</summary><div class="fieldgrid"><div><label for="snapshot_date">Snapshot / export date</label><input id="snapshot_date" type="date"></div><div style="align-self:center"><p class="fine">Only needed for <b>Listing Prices</b> files: the date you exported the file from Shopee. For Inventory, Clinic Movement and Sales, leave this empty.</p></div></div></details></div>
+        </div>
+        <button id="previewBtn" type="submit">Preview file →</button>
+      </form>
+      <div id="message" aria-live="polite"></div>
+      <div id="previewArea" class="hidden topgap">
+        <h2>Review before importing</h2><div id="previewMeta" class="sub"></div>
+        <div id="metrics" class="metrics"></div>
+        <h3>Comparison with Supabase</h3><div id="comparison" class="tablewrap topgap"></div>
+        <div id="warnings"></div>
+        <div class="checkbox"><input type="checkbox" id="confirm"><label for="confirm">I checked the report month, source file and changes above. I understand that the import can be retried if interrupted.</label></div>
+        <div class="actions"><button type="button" id="acceptBtn" disabled>Confirm & import to Supabase</button><button type="button" id="cancelBtn" class="secondary">Cancel</button></div>
+      </div>
+    </section>
+    <div class="stack">
+      <section class="panel"><h2>Latest inventory snapshot</h2><div id="inventoryBox" class="empty">Loading from Supabase…</div></section>
+      <section class="panel"><h2>How uploads work</h2><div class="steps"><div class="step"><span class="number">1</span><div><b>Select one file</b><div class="sub">Choose the correct reporting month and file type.</div></div></div><div class="step"><span class="number">2</span><div><b>Preview the comparison</b><div class="sub">See new, identical, changed, and missing records.</div></div></div><div class="step"><span class="number">3</span><div><b>Confirm when safe</b><div class="sub">Identical imports are skipped. Conflicting uploads are blocked for review.</div></div></div></div><div class="message warn topgap">Singapore listing prices should be uploaded only after your team approves the updated SG price export.</div></section>
+    </div>
+  </div>
+  <section class="panel lower"><div class="hero" style="margin:0 0 12px"><div><h2>Monthly sales overview</h2><p class="sub">Cleaned reporting view. Parent and variation rows are not double-counted. MYR and SGD stay separate.</p></div><button id="refreshBtn" class="secondary" type="button">↻ Refresh</button></div><div class="tablewrap" id="summaryBox"><div class="empty">Loading…</div></div></section>
+  <section class="panel lower"><h2>Recent Supabase imports</h2><p class="sub">Import history includes the earlier scripts as well as new uploads.</p><div class="tablewrap" id="historyBox"><div class="empty">Loading…</div></div></section>
+  <section class="panel lower"><h2>Deleted files</h2><p class="sub">Every deletion is recorded with the staff email that did it. This list cannot be edited from the website.</p><div class="tablewrap" id="deletionsBox"><div class="empty">Loading…</div></div></section>
+  <p class="fine">Historical Clinic data is available only for imported periods. Listing prices are snapshots, not realized sales prices. The old local JSON/SQLite dashboard remains available while migration continues.</p>
+  </div>
+  <div id="tab-weekly" role="tabpanel" hidden>
+<section class="panel">
+    <h2>Upload a weekly sales file</h2>
+    <p class="sub">Choose the file and the exact dates it covers. Weeks must not overlap: a day can only be counted once for each channel. Nothing is saved until you confirm.</p>
+    <form id="w-uploadForm" class="fieldgrid">
+      <div class="fieldwide"><label for="w-file">Excel file (.xlsx)</label><input id="w-file" type="file" accept=".xlsx" required></div>
+      <div><label for="w-kind">Report type</label><select id="w-kind"><option value="auto">Detect automatically</option><option value="my_perf">Shopee MY Sales</option><option value="sg_perf">Shopee SG Sales</option><option value="movement">Clinic Movement</option></select></div>
+      <div></div>
+      <div><label for="w-period_start">First day covered</label><input id="w-period_start" type="date" required></div>
+      <div><label for="w-period_end">Last day covered</label><input id="w-period_end" type="date" required></div>
+      <div class="fieldwide actions"><button id="w-previewBtn" type="submit">Preview</button><span class="fine" id="w-nameHint"></span></div>
+    </form>
+    <div id="w-message"></div>
+    <div id="w-previewArea" class="hidden">
+      <h3 id="w-previewMeta"></h3>
+      <div id="w-metrics" class="metrics"></div>
+      <div id="w-warnings"></div>
+      <div class="checkbox"><input type="checkbox" id="w-confirm"><label for="w-confirm">I checked the type, the dates and the totals above.</label></div>
+      <div class="actions"><button id="w-acceptBtn" type="button" disabled>Save to Supabase</button><button id="w-cancelBtn" type="button" class="secondary">Cancel</button></div>
+    </div>
+  </section>
+
+  <section class="panel lower">
+    <h2>Sales for selected weeks</h2>
+    <div class="fieldgrid ws-range">
+      <div><label for="w-from">From</label><input id="w-from" type="date"></div>
+      <div><label for="w-to">To</label><input id="w-to" type="date"></div>
+      <div class="actions"><button id="w-applyBtn" type="button">Show</button><button id="w-allBtn" type="button" class="secondary">All weeks</button></div>
+    </div>
+    <div id="w-notes"></div>
+    <div id="w-totals" class="metrics ws-totals"></div>
+    <div id="w-gaps"></div>
+    <h3>Week by week</h3>
+    <div class="tablewrap" id="w-weeks"></div>
+  </section>
+
+  <section class="panel lower">
+    <h2>Top products in the selected weeks</h2>
+    <div class="ws-top" id="w-top"></div>
+  </section>
+  <p class="fine">Only whole uploads inside the selected dates are counted. Shopee MY is in MYR and Shopee SG in SGD; they are never added together. Clinic shows units only.</p>
+  </div>
+</main>
+<script src="/assets/js/upload.js" defer></script><script src="/assets/js/weekly-sales.js" defer></script><script src="/assets/js/auth-ui.js"></script>
+<script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body></html>

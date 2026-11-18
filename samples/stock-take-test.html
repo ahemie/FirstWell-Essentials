@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bulk Stock Take (Test)</title>
+<style>
+:root{--p:#4c1d95;--p2:#6d28d9;--bg:#f5f3ff;--line:#e5e1f5;--ok:#15803d;--bad:#b91c1c;--warn:#b45309}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#faf9ff;color:#1f1b2e}
+.top{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:10px 16px}
+.row1{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:16px;margin:0;color:var(--p);flex:1;min-width:160px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+input,select,button{font:inherit}
+input[type=search]{flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+select{padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff}
+button{padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer}
+button:hover{background:var(--bg)}
+button.primary{background:var(--p2);color:#fff;border-color:var(--p2)}
+button.primary:hover{background:var(--p)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.prog{margin-top:10px;display:flex;align-items:center;gap:10px;font-size:12px;color:#5b5675}
+.bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--p2);width:0;transition:width .2s}
+.wrap{padding:16px;max-width:1200px;margin:0 auto}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th{background:var(--bg);color:var(--p);font-size:12px;text-align:left;padding:10px;position:sticky;top:0}
+td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
+tr:nth-child(even) td{background:#fcfbff}
+tr.changed td{background:#fff8e6}
+tr.matched td{background:#f0fdf4}
+tr.focus td{outline:0;box-shadow:inset 0 0 0 2px var(--p2)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.cnt{width:80px;padding:7px;border:1px solid #cfc8ea;border-radius:8px;text-align:right}
+.cnt:focus,.rem:focus,.note:focus{outline:2px solid var(--p2);border-color:transparent}
+.rem,.note{padding:7px;border:1px solid #cfc8ea;border-radius:8px}
+.rem{width:130px}.note{width:150px}
+.var{font-weight:600;min-width:46px;display:inline-block;text-align:right}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.tag{font-size:11px;padding:2px 6px;border-radius:99px;background:#fee2e2;color:var(--bad);margin-left:6px;white-space:nowrap}
+.tag.soon{background:#ffedd5;color:var(--warn)}
+.same{padding:6px 9px;color:var(--ok)}
+.miss{border-color:var(--bad)!important}
+.warn{font-size:11px;color:var(--warn);display:block}
+.empty{padding:30px;text-align:center;color:#7a7494}
+.modal{position:fixed;inset:0;background:rgba(20,10,40,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal.on{display:flex}
+.card{background:#fff;border-radius:12px;max-width:720px;width:100%;max-height:85vh;display:flex;flex-direction:column}
+.card h2{margin:0;padding:16px;font-size:16px;color:var(--p);border-bottom:1px solid var(--line)}
+.card .body{padding:0 16px;overflow:auto}
+.card .foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1f1b2e;color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:60}
+.hint{font-size:12px;color:#7a7494;margin:10px 0 0}
+@media(max-width:720px){.hide-s{display:none}.note{width:100px}.rem{width:100px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="row1">
+    <h1>Bulk Stock Take <span style="font-weight:400;color:#7a7494">(test page – sample data)</span></h1>
+    <button id="reset">Reset</button>
+    <button class="primary" id="review">Review &amp; submit</button>
+  </div>
+  <div class="tools">
+    <input type="search" id="q" placeholder="Search name or scan barcode, press Enter to jump…" autofocus>
+    <select id="filter">
+      <option value="all">All items</option>
+      <option value="todo">Not counted yet</option>
+      <option value="changed">Changed only</option>
+      <option value="soon">Expiring ≤ 6 months</option>
+    </select>
+    <button id="allsame" title="Set every uncounted item to its current count">Mark remaining as matching</button>
+  </div>
+  <div class="prog"><span id="ptxt">0 / 0 counted</span><div class="bar"><i id="pbar"></i></div><span id="saved">Draft autosaved</span></div>
+</div>
+
+<div class="wrap">
+  <table>
+    <thead><tr>
+      <th>Name</th><th class="hide-s">Batch</th><th style="text-align:right">Current</th><th>Unit</th><th>Expiry</th>
+      <th>New count</th><th></th><th>Variance</th><th>Remark</th>
+    </tr></thead>
+    <tbody id="body"></tbody>
+  </table>
+  <div id="none" class="empty" style="display:none">No items match.</div>
+  <p class="hint">Shortcuts: <b>Enter</b> / <b>↓</b> next row · <b>↑</b> previous · <b>Space</b> on empty count = same as system. Counts are saved in this browser as a draft.</p>
+</div>
+
+<div class="modal" id="modal"><div class="card">
+  <h2>Review changes</h2>
+  <div class="body" id="mbody"></div>
+  <div class="foot"><button id="mback">Back</button><button class="primary" id="mok">Confirm update</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const REASONS=["Miscount","Damaged","Expired","Not recorded","Used / dispensed","Other"];
+const D=[
+["A-Bruzzy gel 15g","B2401",46,"Tube","01/09/2029"],
+["A-cerumen Spray 40ml","B2310",1,"Bottle","31/10/2028"],
+["A-cerumen Spray 40ml","B2402",27,"Bottle","31/01/2029"],
+["A-cerumen Unidose 2ml","B2398",148,"Unit","30/09/2028"],
+["A-septic (triclosan 0.3%) AS gel 15g","B2201",2,"Tube","28/02/2027"],
+["A-zole (Albendazole) 200mg/5mL suspension","B2405",19,"Unit","31/07/2029"],
+["AB-Biome 21 probiotics 30's","B2377",12,"Box","30/10/2027"],
+["Adacel (DTaP) 0.5ml injection","B2388",3,"Vial","30/06/2028"],
+["Adezio (cetirizine hcl) syrup 1mg/mL 60ml","B2390",215,"Bottle","31/07/2028"],
+["Aerius (desloratidine) syrup 0.5mg/ml 60ml","B2381",8,"Bottle","06/02/2028"]
+].map((r,i)=>({id:i,name:r[0],batch:r[1],cur:r[2],unit:r[3],exp:r[4]}));
+
+const KEY="stocktake-test-v1";
+let S={}; // id -> {n:number|'' , r:'', t:''}
+try{S=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){S={}}
+const $=s=>document.querySelector(s);
+const body=$("#body");
+const now=new Date(), soonLimit=new Date(now.getFullYear(),now.getMonth()+6,now.getDate());
+function pd(s){const [d,m,y]=s.split("/");return new Date(+y,+m-1,+d)}
+function st(id){return S[id]||(S[id]={n:"",r:"",t:""})}
+function counted(id){return S[id]&&S[id].n!==""&&S[id].n!=null}
+function diff(it){return counted(it.id)?S[it.id].n-it.cur:null}
+function expTag(it){const e=pd(it.exp);if(e<now)return'<span class="tag">Expired</span>';if(e<=soonLimit)return'<span class="tag soon">Expiring soon</span>';return""}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.x);toast.x=setTimeout(()=>t.style.display="none",2200)}
+
+function visible(){
+  const q=$("#q").value.trim().toLowerCase(),f=$("#filter").value;
+  return D.filter(it=>{
+    if(q&&!(it.name.toLowerCase().includes(q)||it.batch.toLowerCase().includes(q)))return false;
+    if(f==="todo"&&counted(it.id))return false;
+    if(f==="changed"&&!(counted(it.id)&&diff(it)!==0))return false;
+    if(f==="soon"&&pd(it.exp)>soonLimit)return false;
+    return true;
+  });
+}
+function render(){
+  const v=visible();
+  body.innerHTML=v.map(it=>{
+    const s=S[it.id]||{n:"",r:"",t:""},d=diff(it);
+    const cls=d===null?"":d===0?"matched":"changed";
+    const need=d!==null&&d!==0&&!s.r;
+    return `<tr data-id="${it.id}" class="${cls}">
+      <td>${it.name}${expTag(it)}</td>
+      <td class="hide-s">${it.batch}</td>
+      <td class="num">${it.cur}</td><td>${it.unit}</td><td>${it.exp}</td>
+      <td><input class="cnt" type="number" min="0" inputmode="numeric" value="${s.n}" data-id="${it.id}" aria-label="New count for ${it.name}">
+        <span class="warn" id="w${it.id}">${bigGap(it,d)}</span></td>
+      <td><button class="same" data-same="${it.id}" title="Same as system (Space)">✓</button></td>
+      <td><span class="var ${d>0?"pos":d<0?"neg":""}">${d===null?"":(d>0?"+":"")+d}</span></td>
+      <td>${d!==null&&d!==0?`<select class="rem ${need?"miss":""}" data-r="${it.id}"><option value="">Reason…</option>${REASONS.map(x=>`<option ${s.r===x?"selected":""}>${x}</option>`).join("")}</select>
+        <input class="note" data-t="${it.id}" placeholder="Note" value="${(s.t||"").replace(/"/g,"&quot;")}">`:""}</td>
+    </tr>`}).join("");
+  $("#none").style.display=v.length?"none":"block";
+  progress();
+}
+function bigGap(it,d){
+  if(d===null||d===0)return"";
+  const pct=Math.abs(d)/Math.max(it.cur,1);
+  return (pct>=0.5&&Math.abs(d)>=3)?`⚠ Big gap (${Math.round(pct*100)}%) – please recheck`:"";
+}
+function progress(){
+  const c=D.filter(i=>counted(i.id)).length;
+  $("#ptxt").textContent=c+" / "+D.length+" counted";
+  $("#pbar").style.width=(100*c/D.length)+"%";
+}
+function focusRow(id,dir){
+  const rows=[...body.querySelectorAll(".cnt")];
+  const i=rows.findIndex(x=>+x.dataset.id===id);
+  const nx=rows[i+dir];
+  if(nx){nx.focus();nx.select();nx.closest("tr").classList.add("focus");nx.scrollIntoView({block:"center",behavior:"smooth"})}
+}
+// update one row in place (keeps focus while typing)
+function updateRow(id){
+  const it=D[id],s=st(id),d=diff(it),tr=body.querySelector(`tr[data-id="${id}"]`);
+  if(!tr)return;
+  tr.className=d===null?"":d===0?"matched":"changed";
+  const v=tr.querySelector(".var");
+  v.textContent=d===null?"":(d>0?"+":"")+d;v.className="var "+(d>0?"pos":d<0?"neg":"");
+  tr.querySelector(".warn").textContent=bigGap(it,d);
+  const cell=tr.lastElementChild,had=cell.querySelector("select");
+  const showR=d!==null&&d!==0;
+  if(showR&&!had){
+    cell.innerHTML=`<select class="rem" data-r="${id}"><option value="">Reason…</option>${REASONS.map(x=>`<option ${s.r===x?"selected":""}>${x}</option>`).join("")}</select> <input class="note" data-t="${id}" placeholder="Note" value="${(s.t||"").replace(/"/g,"&quot;")}">`;
+  }else if(!showR&&had){cell.innerHTML=""}
+  progress();save();
+}
+body.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.classList.contains("cnt")){const id=+t.dataset.id;st(id).n=t.value===""?"":Math.max(0,parseInt(t.value,10)||0);updateRow(id)}
+  else if(t.dataset.t!==undefined){st(+t.dataset.t).t=t.value;save()}
+});
+body.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.r!==undefined){st(+t.dataset.r).r=t.value;t.classList.toggle("miss",!t.value);save()}
+});
+body.addEventListener("click",e=>{
+  const b=e.target.closest("[data-same]");if(!b)return;
+  const id=+b.dataset.same;st(id).n=D[id].cur;S[id].r="";S[id].t="";
+  const inp=body.querySelector(`.cnt[data-id="${id}"]`);inp.value=D[id].cur;updateRow(id);focusRow(id,1);
+});
+body.addEventListener("keydown",e=>{
+  const t=e.target;if(!t.classList.contains("cnt"))return;
+  const id=+t.dataset.id;
+  if(e.key==="Enter"||e.key==="ArrowDown"){e.preventDefault();focusRow(id,1)}
+  else if(e.key==="ArrowUp"){e.preventDefault();focusRow(id,-1)}
+  else if(e.key===" "&&t.value===""){e.preventDefault();st(id).n=D[id].cur;t.value=D[id].cur;updateRow(id);focusRow(id,1)}
+});
+body.addEventListener("focusin",e=>{body.querySelectorAll("tr.focus").forEach(r=>r.classList.remove("focus"));const tr=e.target.closest("tr");if(tr&&e.target.classList.contains("cnt"))tr.classList.add("focus")});
+
+$("#q").addEventListener("input",render);
+$("#q").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    const v=visible();
+    if(v.length){const first=body.querySelector(".cnt");if(first){first.focus();first.select()}}
+    else toast("No match for that code/name");
+  }
+});
+$("#filter").addEventListener("change",render);
+$("#allsame").addEventListener("click",()=>{
+  let n=0;D.forEach(it=>{if(!counted(it.id)){st(it.id).n=it.cur;n++}});save();render();toast(n+" items marked as matching");
+});
+$("#reset").addEventListener("click",()=>{S={};save();render();toast("Draft cleared")});
+
+$("#review").addEventListener("click",()=>{
+  const ch=D.filter(i=>counted(i.id)&&diff(i)!==0);
+  const un=D.filter(i=>!counted(i.id)).length;
+  const missing=ch.filter(i=>!S[i.id].r);
+  let h="";
+  if(un)h+=`<p style="color:var(--warn)">${un} item(s) not counted yet – they will be left unchanged.</p>`;
+  if(missing.length)h+=`<p style="color:var(--bad)">${missing.length} changed item(s) still need a reason.</p>`;
+  if(!ch.length)h+=`<p>No stock changes to submit.</p>`;
+  else h+=`<table><thead><tr><th>Item</th><th>Old</th><th>New</th><th>Var</th><th>Reason</th></tr></thead><tbody>`+
+    ch.map(i=>{const d=diff(i),s=S[i.id];return `<tr><td>${i.name}<div style="font-size:11px;color:#7a7494">${i.batch}</div></td><td>${i.cur}</td><td>${s.n}</td><td class="${d>0?"pos":"neg"}">${d>0?"+":""}${d}</td><td>${s.r||'<span class="neg">missing</span>'}${s.t?" – "+s.t:""}</td></tr>`}).join("")+`</tbody></table>`;
+  $("#mbody").innerHTML=h;$("#mok").disabled=missing.length>0;
+  $("#modal").classList.add("on");
+});
+$("#mback").addEventListener("click",()=>$("#modal").classList.remove("on"));
+$("#mok").addEventListener("click",()=>{
+  D.forEach(i=>{if(counted(i.id)){i.cur=S[i.id].n}});
+  S={};save();$("#modal").classList.remove("on");render();toast("Stock updated (test only – nothing was sent to a server)");
+});
+render();
+</script>
+</body>
+</html>

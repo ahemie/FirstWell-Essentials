@@ -1,0 +1,51 @@
+/* Stock After Sales page, scoped under .sa */
+.sa{background:#f6f3ec;color:#1b2523;font:14px/1.45 'Plus Jakarta Sans',system-ui,sans-serif;min-height:60vh}
+.sa-page{max-width:1300px;margin:0 auto;padding:28px 24px 72px}
+.sa h1{margin:0 0 4px;font-size:26px}
+.sa-muted{color:#5d6965}
+.sa-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:18px 0;background:#fff;border:1px solid #e6e0d3;border-radius:12px;padding:14px}
+.sa-controls label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:12px;color:#5d6965}
+.sa-controls select,.sa-controls input{min-height:40px;border:1px solid #b9b3a3;border-radius:8px;padding:0 10px;font:inherit;color:#1b2523;background:#fff}
+.sa-controls button{min-height:40px;border-radius:10px;border:1px solid #0b3d37;background:#0b3d37;color:#fff;font-weight:600;padding:0 18px;cursor:pointer}
+.sa-controls button.alt{background:#fff;color:#0b3d37}
+.sa-controls button:disabled{opacity:.5;cursor:not-allowed}
+.sa-msg{padding:10px 14px;border-radius:10px;background:#fbeceb;color:#b3261e;margin-bottom:14px}
+.sa-cards{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 16px}
+.sa-card{background:#fff;border:1px solid #e6e0d3;border-radius:12px;padding:12px 16px;min-width:150px}
+.sa-card b{display:block;font-size:22px}
+.sa-card span{color:#5d6965;font-size:12px}
+.sa-note{background:#fcf1de;color:#6b4306;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:13px}
+.sa-wrap{overflow:auto;background:#fff;border:1px solid #e6e0d3;border-radius:12px}
+.sa table{border-collapse:collapse;width:100%;min-width:760px}
+.sa th{background:#f3efe4;text-align:left;font-size:12px;padding:9px 12px;position:sticky;top:0}
+.sa td{padding:8px 12px;border-top:1px solid #f0ebdf}
+.sa .num{text-align:right;font-variant-numeric:tabular-nums}
+.sa tr.neg td{background:#fbeceb}
+.sa .neg-n{color:#b3261e;font-weight:700}
+.sa h2{font-size:17px;margin:24px 0 8px}
+.sa-search{min-height:40px;border:1px solid #b9b3a3;border-radius:8px;padding:0 10px;font:inherit;margin:0 0 10px;width:min(360px,100%)}
+
+.sa-tabs{display:flex;gap:6px;margin:16px 0 4px}
+.sa-tabs button{min-height:40px;border:1px solid #e6e0d3;background:#fff;border-radius:10px;padding:0 16px;font:inherit;font-weight:600;color:#5d6965;cursor:pointer}
+.sa-tabs button.sel{background:#0b3d37;color:#fff;border-color:#0b3d37}
+.sa-help{margin-top:22px;background:#fff;border:1px solid #e6e0d3;border-radius:12px;padding:12px 16px}
+.sa-help summary{cursor:pointer;font-weight:600}
+.sa-help code{background:#efebe0;border-radius:5px;padding:1px 6px;font-size:12px}
+.sa-files{margin:0 0 12px;padding-left:18px;color:#5d6965}
+.sa td.chk{color:#6b4306;background:#fcf1de;font-size:12px}
+.sa-actions{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+.sa-actions button{min-height:40px;border-radius:10px;border:1px solid #0b3d37;background:#0b3d37;color:#fff;font-weight:600;padding:0 16px;cursor:pointer}
+.sa-actions button.alt{background:#fff;color:#0b3d37}
+.sa-confirm{margin:16px 0;background:#fff;border:1px solid #e6e0d3;border-radius:12px;padding:14px}
+.sa-confirm label{display:flex;gap:8px;align-items:flex-start;font-weight:600}
+.sa-done{background:#e6f4ec;color:#1c7a4d;border-radius:10px;padding:12px 16px;margin-bottom:12px}
+.sa-help ol{margin:8px 0;padding-left:20px}
+.sa-actions button:disabled{opacity:.5;cursor:not-allowed}
+.sa-slots{background:#fff;border:1px solid #e6e0d3;border-radius:12px;padding:14px;margin:14px 0}
+.sa-pick{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:12px;color:#5d6965;margin-bottom:12px}
+.sa-slotgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:12px}
+.sa-slot{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:12px;color:#1b2523;border:1px solid #e6e0d3;border-radius:10px;padding:8px;background:#faf8f2}
+.sa-slot input,.sa-pick input{font:inherit;font-size:12px;font-weight:400;max-width:100%}
+.sa-link{background:none;border:0;color:#0b6a5c;font-weight:600;cursor:pointer;text-decoration:underline;font:inherit}
+.sa-copy{padding:3px 9px;font-size:12px;border:1px solid #cfd5cf;border-radius:8px;background:#fff;cursor:pointer}
+.sa-copy:hover{background:#f1f4ef}

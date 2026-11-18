@@ -1,0 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* =====================================================================
+   FIRSTSTEP DESIGN SYSTEM v2 — "Ledger"
+   One file controls the look of every page: Action Centre, Inventory,
+   Analytics, Product Details, Supabase BI and Upload.
+   Change the colours below and the whole site follows.
+   ===================================================================== */
+:root {
+  --fs-brand: #0b3d37;
+  --fs-brand-dark: #072b27;
+  --fs-accent: #178f7c;
+  --fs-accent-soft: #e3f3ef;
+  --fs-ink: #1b2523;
+  --fs-subtle: #5d6965;
+  --fs-faint: #8b9591;
+  --fs-bg: #f6f3ec;
+  --fs-surface: #ffffff;
+  --fs-border: #e6e0d3;
+  --fs-border-soft: #f0ebdf;
+  --fs-red: #b3261e;      --fs-red-soft: #fbeceb;
+  --fs-amber: #b06a0a;    --fs-amber-soft: #fcf1de;
+  --fs-blue: #2a5da8;     --fs-blue-soft: #e8eff9;
+  --fs-green: #1c7a4d;    --fs-green-soft: #e6f4ec;
+  --fs-radius: 14px;
+  --fs-shadow: 0 1px 2px rgba(27,37,35,.04), 0 8px 28px rgba(27,37,35,.05);
+  --fs-font: 'Plus Jakarta Sans','IBM Plex Sans',system-ui,'Segoe UI',sans-serif;
+  --fs-mono: 'IBM Plex Mono',ui-monospace,monospace;
+
+  /* map the older per-page variables onto the new palette */
+  --ink: var(--fs-ink); --muted: var(--fs-subtle); --faint: var(--fs-faint);
+  --line: var(--fs-border); --line2: var(--fs-border-soft); --bg: var(--fs-bg);
+  --card: var(--fs-surface); --brand: var(--fs-brand);
+  --green: var(--fs-brand); --pale: var(--fs-accent-soft); --white: #fff;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--fs-bg) !important; color: var(--fs-ink) !important; font-family: var(--fs-font) !important; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--fs-font); letter-spacing: -.02em; }
+.num, .mono { font-family: var(--fs-mono) !important; font-variant-numeric: tabular-nums; }
+
+/* ---------- header ---------- */
+.fs-header { background: var(--fs-brand) !important; color: #fff !important; padding: 0 !important; border: 0 !important; }
+.fs-header-inner { max-width: 1400px; margin: auto; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.fs-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.fs-logo { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: linear-gradient(145deg,#1fae98,#0f6b5f); color: #fff; font-size: 24px; display: grid; place-items: center; font-weight: 800; line-height: 1; letter-spacing: -3px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+.fs-logo span { color: #d4f5ea; font-size: 14px; letter-spacing: 0; margin-left: -9px; align-self: start; }
+.fs-brand strong { font-size: 17px; letter-spacing: -.02em; color: #fff; font-weight: 800; }
+.fs-brand strong span { font-weight: 500; opacity: .85; }
+.fs-brand small { display: block; font-size: 11.5px; color: #a9d4c9; margin-top: 2px; font-weight: 500; }
+.fs-header-side { display: flex; gap: 14px; align-items: center; justify-content: flex-end; font-size: 12px; }
+.fs-indicator { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; border: 1px solid rgba(255,255,255,.2); border-radius: 100px; padding: 6px 11px; background: rgba(255,255,255,.07); font-weight: 600; }
+.fs-indicator i { width: 7px; height: 7px; border-radius: 50%; background: #5ce0b8; box-shadow: 0 0 0 3px rgba(92,224,184,.2); }
+.fs-asof { max-width: 260px; color: #cfe6df; }
+
+/* ---------- navigation ---------- */
+.site-nav.fs-nav { display: flex !important; flex-wrap: wrap; gap: 2px !important; background: var(--fs-surface) !important; border-bottom: 1px solid var(--fs-border) !important; padding: 0 max(20px, calc((100vw - 1400px) / 2 + 32px)) !important; position: sticky; top: 0; z-index: 20; }
+.site-nav.fs-nav a { display: inline-flex !important; align-items: center; gap: 7px; color: var(--fs-subtle) !important; text-decoration: none !important; font-size: 13px !important; font-weight: 600 !important; padding: 14px 14px !important; border-radius: 0 !important; background: transparent !important; border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color .15s, border-color .15s; }
+.site-nav.fs-nav a:hover { color: var(--fs-brand) !important; }
+body[data-page="overview"] .site-nav.fs-nav a[data-nav="overview"],
+body[data-page="inventory"] .site-nav.fs-nav a[data-nav="inventory"],
+body[data-page="analytics"] .site-nav.fs-nav a[data-nav="analytics"],
+body[data-page="product"] .site-nav.fs-nav a[data-nav="product"],
+body[data-page="bi"] .site-nav.fs-nav a[data-nav="bi"],
+body[data-page="scrap"] .site-nav.fs-nav a[data-nav="scrap"],
+body[data-page="upload"] .site-nav.fs-nav a[data-nav="upload"] { color: var(--fs-brand) !important; border-bottom-color: var(--fs-accent) !important; background: transparent !important; }
+/* ---------- section switcher (Dashboard / Price Scraping / Inventory Update) ---------- */
+.fs-sections { background: var(--fs-brand-dark); border-top: 1px solid rgba(255,255,255,.08); }
+.fs-sections-inner { max-width: 1400px; margin: auto; padding: 0 32px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.fs-sections-inner::-webkit-scrollbar { display: none; }
+.fs-sections a { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; color: #a9d4c9; text-decoration: none; font-size: 13.5px; font-weight: 700; padding: 11px 16px; border-radius: 10px 10px 0 0; margin-top: 6px; transition: background .15s, color .15s; }
+.fs-sections a b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: rgba(255,255,255,.12); color: #d4f5ea; }
+.fs-sections a:hover { color: #fff; background: rgba(255,255,255,.07); }
+.fs-sections a[aria-current="page"] { background: var(--fs-surface); color: var(--fs-brand); }
+.fs-sections a[aria-current="page"] b { background: var(--fs-accent); color: #fff; }
+.fs-sections a:focus-visible { outline: 3px solid #8fd3c4; outline-offset: -3px; }
+.site-nav.fs-nav a[aria-current="page"] { color: var(--fs-brand) !important; border-bottom-color: var(--fs-accent) !important; }
+.site-nav.fs-nav[hidden] { display: none !important; }
+@media (max-width: 720px) { .fs-sections-inner { padding: 0 12px; } .fs-sections a { padding: 10px 12px; font-size: 13px; } }
+@media (max-width: 480px) { .fs-sections-inner { gap: 2px; } .fs-sections a { padding: 10px 9px; font-size: 12.5px; } .fs-sections a b { display: none; } }
+
+.fs-nav-new { font-size: 9px; font-weight: 800; background: var(--fs-accent-soft); color: var(--fs-accent); padding: 2px 5px; border-radius: 5px; letter-spacing: .04em; }
+.site-nav.fs-nav a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #8fd3c4; outline-offset: 2px; }
+
+/* ---------- shared surfaces (legacy pages, BI, upload) ---------- */
+.panel, .card, .ba-card, .bi-card, .chart-panel, .detail-section {
+  background: var(--fs-surface) !important; border: 1px solid var(--fs-border) !important; border-radius: var(--fs-radius) !important; box-shadow: var(--fs-shadow) !important;
+}
+.card:hover, .bi-kpi:hover { border-color: #cfc7b2 !important; }
+.ba-card .value, .card .big, .bi-kpi strong { font-family: var(--fs-mono) !important; letter-spacing: -.03em; }
+.ba-card h3, .bi-kpi-label, .lbl { font-size: 11px !important; text-transform: uppercase; letter-spacing: .08em; color: var(--fs-subtle) !important; font-weight: 700 !important; }
+h2 { font-weight: 700; }
+
+.btn, .bi-button, button.primary, .seg button { font-family: var(--fs-font) !important; border-radius: 10px !important; font-weight: 600 !important; }
+.btn[aria-pressed="true"], .seg button[aria-pressed="true"], .bi-button:not(.bi-outline) { background: var(--fs-brand) !important; color: #fff !important; border-color: var(--fs-brand) !important; }
+.tag, .bi-chip, .bi-small-tag { border-radius: 100px !important; font-weight: 700 !important; }
+
+/* tables */
+.thead, .ba-table th, .bi-table th { background: #f3efe4 !important; color: var(--fs-subtle) !important; text-transform: uppercase; letter-spacing: .06em; font-size: 11px !important; font-weight: 700 !important; }
+.trow:hover, .ba-table tr:hover td { background: #faf7ef !important; }
+
+.banner.red { background: var(--fs-red-soft) !important; border-color: #f0c6c2 !important; color: #7e1a22 !important; }
+.banner.amber { background: var(--fs-amber-soft) !important; border-color: #efd9ae !important; color: #6b4306 !important; }
+
+/* inputs */
+input, select, textarea { font-family: var(--fs-font); border-radius: 10px; }
+input[type=search], .search input, select { border: 1px solid var(--fs-border); background: #fff; }
+
+@media (max-width: 750px) {
+  .fs-header-inner { padding: 14px 18px; }
+  .fs-header-side { display: none; }
+  .site-nav.fs-nav { padding: 0 10px !important; overflow-x: auto; flex-wrap: nowrap; }
+  .site-nav.fs-nav a { padding: 13px 10px !important; font-size: 12px !important; white-space: nowrap; }
+}
+@media print {
+  .site-nav.fs-nav, .fs-header-side { display: none !important; }
+  body { background: #fff !important; }
+}
+
+/* ---------- company logo (image supplied in assets/images) ---------- */
+.fs-logo:has(.fs-company-logo) { background: #fff; padding: 4px; box-shadow: none; width: 46px; height: 46px; border-radius: 12px; letter-spacing: 0; }
+.fs-logo .fs-company-logo { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* ---------- "How each card is calculated": same look as the "Data uploads" panels ---------- */
+.rules-section > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 2px 0 12px; }
+.rules-section > summary::-webkit-details-marker { display: none; }
+.rules-section > summary h2 { margin: 0; }
+.rules-count { font-size: 13px; font-weight: 500; color: var(--fs-subtle); white-space: nowrap; }
+.rules-toggle { font-size: 13px; font-weight: 700; color: var(--fs-accent); white-space: nowrap; }
+.rules-toggle::before { content: 'Show ▼'; }
+.rules-section[open] .rules-toggle::before { content: 'Hide ▲'; }
+.rules-groups { margin-bottom: 4px; }
+.rule-dot { display: inline-block; width: 10px; height: 10px; margin-right: 10px; }
+.rules-note { margin: 12px 2px 0; font-size: 12.5px; line-height: 1.55; color: var(--fs-subtle); }
+.rules-section { margin-bottom: 20px; }
+.ups { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.ups > .panel h3 { margin: 0 0 12px !important; font-size: 15px; }
+.ups .up {
+  margin-top: 8px; padding: 12px 14px; gap: 6px 12px;
+  background: #faf8f2; border: 1px solid var(--fs-border-soft); border-radius: 10px; box-shadow: none;
+}
+.ups .up:first-of-type { margin-top: 0; }
+@media (max-width: 640px) { .ups { grid-template-columns: 1fr; } }
+
+/* Shopee SG shown in RM with the original S$ underneath */
+.sub-currency { display: block; margin-top: 2px; font-size: 11px; font-weight: 500; color: var(--muted, #6b7280); letter-spacing: 0; }

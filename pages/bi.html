@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Staff-only FirstWell Essentials Supabase Business Intelligence dashboard">
+  <title>FirstWell Essentials · Supabase BI</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/bi.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
+</head>
+<body data-page="bi">
+<header class="fs-header"><div class="fs-header-inner"><div class="fs-brand"><span class="fs-logo"><img src="/assets/images/firstwell-essentials.png" alt="FirstWell Essentials logo" class="fs-company-logo"></span><div><strong>FirstWell <span>Essentials</span></strong><small>Inventory &amp; Business Insights</small></div></div><div class="fs-header-side"><span class="fs-indicator"><i></i> Staff workspace</span><span id="asof" class="fs-asof"></span></div></div></header>
+<nav class="site-nav fs-nav" aria-label="Pages"></nav>
+<script src="/assets/js/nav.js"></script>
+<main class="bi-container">
+  <div class="bi-head">
+    <div>
+      <p class="bi-eyebrow"><span class="bi-green-dot"></span> CONNECTED DATA · SUPABASE</p>
+      <h1>Business intelligence</h1>
+      <p class="bi-intro">A clear picture of monthly sales, inventory health and product performance—built from your Supabase reports.</p>
+    </div>
+    <div class="bi-heading-actions"><span class="bi-source">Source: Supabase views</span><button class="bi-button bi-outline" type="button" id="refresh" aria-label="Refresh Supabase BI data">↻ Refresh data</button></div>
+  </div>
+  <section class="bi-filter-bar" aria-label="Report filters">
+    <div class="bi-field"><label for="startMonth">From month</label><select id="startMonth" disabled><option>Loading…</option></select></div>
+    <div class="bi-field"><label for="endMonth">To month</label><select id="endMonth" disabled><option>Loading…</option></select></div>
+    <div class="bi-field"><label for="topMarket">Top products from</label><select id="topMarket" disabled><option value="MY">Shopee Malaysia · MYR</option><option value="SG">Shopee Singapore · SGD</option></select></div>
+    <div class="bi-filter-info" id="filterInfo">Loading reporting months…</div>
+  </section>
+  <div id="error" class="bi-alert bi-error bi-hidden" role="alert"></div>
+  <div id="loading" class="bi-loading" role="status">Connecting to Supabase and preparing insights…</div>
+  <div id="dashboard" class="bi-hidden">
+    <section class="bi-kpis" aria-label="Core business metrics">
+      <article class="bi-card bi-kpi"><div class="bi-kpi-label">Shopee MY sales <span class="bi-chip">MYR</span></div><strong id="kpiMY">—</strong><div class="bi-kpi-foot" id="kpiMYUnits">Source sales · selected months</div></article>
+      <article class="bi-card bi-kpi"><div class="bi-kpi-label">Shopee SG sales <span class="bi-chip">SGD</span></div><strong id="kpiSG">—</strong><div class="bi-kpi-foot" id="kpiSGUnits">Source sales · selected months</div></article>
+      <article class="bi-card bi-kpi"><div class="bi-kpi-label">Clinic estimated revenue <span class="bi-chip bi-chip-alt">MYR</span></div><strong id="kpiClinic">—</strong><div class="bi-kpi-foot" id="kpiClinicUnits">Estimated from list prices · not receipts</div></article>
+      <article class="bi-card bi-kpi"><div class="bi-kpi-label"><span id="kpiStockLabel">Latest inventory value</span> <span class="bi-chip">MYR</span></div><strong id="kpiStock">—</strong><div class="bi-kpi-foot" id="kpiStockDate">Stock snapshot · not live inventory</div></article>
+    </section>
+    <div class="bi-section-title"><div><span class="bi-section-kicker">DATA VISUALISATION</span><h2>Performance overview</h2></div><p>Two interactive views, based on your existing reports</p></div>
+    <section class="bi-chart-grid" aria-label="Business charts">
+      <article class="bi-card bi-panel bi-chart-card">
+        <div class="bi-panel-head"><div><h2>Sales volume by channel</h2><p>Units reported across selected months</p></div><span class="bi-small-tag">BY CHANNEL</span></div>
+        <div class="bi-donut-content"><div id="salesDonut" class="bi-donut" role="img" aria-label="Sales volumes by channel"></div><div id="salesDonutLegend" class="bi-donut-legend"></div></div>
+        <p class="bi-note">Clinic units are stock movement; Shopee units are reported sales. This chart compares units, <strong>not revenue</strong>.</p>
+      </article>
+      <article class="bi-card bi-panel bi-chart-card">
+        <div class="bi-panel-head"><div><h2>Sales trends by channel</h2><p>Tick the channels you want to compare each month.</p></div><span class="bi-small-tag">UNITS SOLD</span></div>
+        <fieldset class="bi-channel-filters" aria-label="Visible sales channels">
+          <legend>Show channels</legend>
+          <label class="bi-channel-option"><input type="checkbox" id="channelAll" checked><span>All</span></label>
+          <label class="bi-channel-option"><input type="checkbox" class="bi-channel-select" value="Clinic" checked><i class="bi-channel-color" style="--channel-color:#c98b47"></i><span>Clinic</span></label>
+          <label class="bi-channel-option"><input type="checkbox" class="bi-channel-select" value="Shopee MY" checked><i class="bi-channel-color" style="--channel-color:#527bbc"></i><span>Shopee MY</span></label>
+          <label class="bi-channel-option"><input type="checkbox" class="bi-channel-select" value="Shopee SG" checked><i class="bi-channel-color" style="--channel-color:#15b49e"></i><span>Shopee Singapore</span></label>
+        </fieldset>
+        <div id="salesAreaChart" class="bi-area-wrap" role="img" aria-label="Monthly units sold by selected channels"></div>
+        <p class="bi-note">Comparable units only; Clinic is stock movement while Shopee uses sales-report quantities. Missing months are gaps, not zero sales.</p>
+        <div class="bi-revenue-detail">
+          <div class="bi-revenue-head"><strong>Revenue detail</strong><label class="bi-mini-filter">Channel <select id="trendMarket"><option value="Shopee MY">Shopee MY</option><option value="Shopee SG">Shopee SG</option><option value="Clinic">Clinic (estimated)</option></select></label></div>
+          <div class="bi-chart-legend"><span><i class="bi-legend-dot bi-dot-blue"></i> Revenue <b id="trendCurrency">MYR</b></span><span><i class="bi-legend-line"></i> Units (right scale)</span></div>
+          <div id="revenueDetailChart" class="bi-area-wrap bi-revenue-area" role="img" aria-label="Monthly revenue and units for chosen channel"></div>
+          <p class="bi-note" id="trendNote">Shopee source sales; switch channels to compare independently.</p>
+        </div>
+      </article>
+    </section>
+    <section class="bi-card bi-panel bi-top-panel"><div class="bi-panel-head"><div><h2 id="topHeading">Top Shopee products</h2><p id="topSub">Top 20 by revenue within the selected marketplace only.</p></div><span class="bi-small-tag" id="topTag">MYR</span></div><div id="topProducts"></div><div class="bi-top-actions"><button type="button" class="bi-button bi-outline" id="topToggle" aria-expanded="false" hidden>Show all products</button><span class="bi-top-count" id="topCount"></span></div><p class="bi-note">Top 20 shows name, units sold and revenue. “Show products with no sales” lists the listings that sold nothing in the selected months. Variations and parent sales are not counted twice.</p></section>
+    <div class="bi-two-col">
+      <section class="bi-card bi-panel"><div class="bi-panel-head"><div><h2>Inventory health</h2><p>Based on the latest dated Avixo stock snapshot.</p></div><span class="bi-small-tag" id="inventoryDate">—</span></div><div class="bi-stock-overview" id="stockSummary"></div><h3 class="bi-subheading">Low-stock review <small>≤ 5 units · configurable guide</small></h3><div id="lowStock"></div><p class="bi-note">Low stock is an informational threshold, not a reorder recommendation.</p></section>
+      <section class="bi-card bi-panel"><div class="bi-panel-head"><div><h2>Listing-price snapshots</h2><p>Most recent MY and SG snapshots held in Supabase.</p></div></div><div id="priceSnapshots"></div><p class="bi-note">Listing prices are not actual transaction prices. Singapore prices remain pending until approved.</p></section>
+    </div>
+    <section class="bi-card bi-panel bi-import-panel"><div class="bi-panel-head"><div><h2>Recent report imports</h2><p>Latest accepted and pending Supabase imports.</p></div><a class="bi-text-link" href="/upload.html">Manage uploads ↗</a></div><div id="importList"></div></section>
+    <section class="bi-card bi-panel bi-bottom"><div class="bi-panel-head"><div><h2>Monthly reporting detail</h2><p>One row per month and channel. Figures are never converted between currencies.</p></div><button type="button" id="exportCsv" class="bi-button bi-outline">↓ Export CSV</button></div><div id="monthlyTable" class="bi-table-scroll"></div></section>
+    <p class="bi-footer">Source: Supabase · Cleaned monthly channel view and latest inventory snapshot. Historic dashboards under Inventory, Business Analytics and Product Details still use legacy JSON until migration is complete.</p>
+  </div>
+</main>
+<script src="/assets/js/bi.js" defer></script>
+<script src="/assets/js/auth-ui.js" defer></script>
+<script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

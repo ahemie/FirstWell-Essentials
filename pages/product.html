@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FirstWell Essentials · Product Details</title>
+
+  <!--
+    BEGINNER NOTES
+    HTML = page structure (the header and an empty main area).
+    CSS  = page appearance (colors, spacing, tables).
+    JS   = calculations, data loading, and making HTML appear in <main>.
+
+    REQUIRED FILES:
+       index.html                 <- this file (rename it to index.html)
+       data/months.js             <- tells the dashboard which months exist
+       data/YYYY-MM.js            <- one data file for each month
+    See the separate Beginner Guide for a simple explanation.
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/product.css">
+<link rel="stylesheet" href="/assets/css/shell.css">
+</head>
+<body data-page="product">
+  <!-- Header: the name and reporting date appear here. -->
+  <header class="fs-header"><div class="fs-header-inner"><div class="fs-brand"><span class="fs-logo"><img src="/assets/images/firstwell-essentials.png" alt="FirstWell Essentials logo" class="fs-company-logo"></span><div><strong>FirstWell <span>Essentials</span></strong><small>Inventory &amp; Business Insights</small></div></div><div class="fs-header-side"><span class="fs-indicator"><i></i> Staff workspace</span><span id="asof" class="fs-asof"></span></div></div></header>
+<nav class="site-nav fs-nav" aria-label="Pages"></nav>
+<script src="/assets/js/nav.js"></script>
+  <!-- JavaScript will create all the cards, filters and tables in here. -->
+  <main class="wrap" id="app">
+    <div class="panel" style="padding:32px;color:#4F5A55">Loading…</div>
+  </main>
+
+  <script src="data/product_trends.js"></script>
+  <script src="/assets/js/product.js" defer></script>
+<script src="/assets/js/auth-ui.js"></script><script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

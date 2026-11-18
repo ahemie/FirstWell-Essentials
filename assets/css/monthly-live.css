@@ -1,0 +1,39 @@
+/* FirstWell Essentials — secure, read-only month-by-month Supabase detail (legacy page bridge). */
+.live-month-filter,.live-month-panel{margin-bottom:16px}
+.live-month-row{display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.live-month-row label,.live-month-filters label{display:flex;flex-direction:column;gap:5px;color:#465e54;font-weight:700;font-size:12px}
+.live-month-row select,.live-month-filters select,.live-month-filters input{padding:9px 11px;border:1px solid #cbdad0;background:#fff;border-radius:9px;font:inherit;color:#17382e;min-height:40px}
+.live-month-source{border-radius:99px;background:#eaf5ed;padding:6px 12px;font-size:12px;color:#115446;font-weight:700}
+.live-month-note{color:#52675f;font-size:12px;line-height:1.55;margin:12px 0}
+.live-month-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.live-month-kpi{background:#fff;border:1px solid #dfe7df;border-radius:14px;min-width:0;padding:19px;display:flex;flex-direction:column;gap:5px}
+.live-month-kpi span{font-size:12px;color:#4a6257;font-weight:700}
+.live-month-kpi strong{font-size:22px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.live-month-kpi small{font-size:11px;color:#64766e}
+.live-month-panel{padding:20px}
+.live-month-panel h2{font-size:19px;margin:0 0 6px}
+.live-month-filters{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:18px 0}
+.live-month-filters label{flex:1 1 170px}
+.live-month-filters label:last-child{flex:2 1 260px}
+.live-month-table-wrap{width:100%;overflow-x:clip}
+.live-month-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:11px}
+.live-month-table th,.live-month-table td{padding:10px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere;border-bottom:1px solid #e9eeea}
+.live-month-table th{font-size:10px;text-transform:uppercase;color:#607169;background:#f4f7f4}
+.live-month-table th:first-child{width:31%}
+.live-month-table th:nth-child(2){width:10%}
+.live-month-table th:nth-child(3){width:18%}
+.live-month-table th:nth-child(4){width:13%}
+.live-month-table th:nth-child(5),.live-month-table th:nth-child(6){width:14%}
+.live-month-table td small{display:block;margin-top:4px;font-size:10px;color:#708178}
+.live-month-table tr:hover td{background:#f7faf7}
+@media(max-width:850px){.live-month-kpis{grid-template-columns:1fr}.live-month-table thead{display:none}.live-month-table,.live-month-table tbody,.live-month-table tr,.live-month-table td{display:block;width:100%}.live-month-table tr{border:1px solid #e2ebe3;border-radius:10px;margin-bottom:10px;overflow:hidden}.live-month-table td{display:flex;gap:12px;justify-content:space-between;text-align:right;padding:7px 10px;border-bottom:0}.live-month-table td:first-child{display:block;text-align:left;background:#f7faf7;font-size:13px}.live-month-table td:not(:first-child)::before{content:attr(data-label);font-weight:700;text-align:left;color:#597064;flex:0 0 40%}}
+
+/* Live Supabase months use the same nine-card grid as original September. */
+.live-month-nine-cards{margin-bottom:16px}
+.live-month-summary-card{cursor:default;min-width:0;overflow:hidden;min-height:171px}
+.live-month-summary-card:hover{transform:none}
+.live-month-card-heading{display:flex;align-items:center;gap:8px;font-size:14px;line-height:1.3}
+.live-month-summary-card .big{font-size:clamp(16px,1.6vw,22px);overflow-wrap:anywhere;line-height:1.3}
+.live-month-summary-card .sub{overflow-wrap:anywhere;font-size:11px;line-height:1.45}
+.live-month-summary-card .foot{overflow-wrap:anywhere;font-size:11px;line-height:1.4}
+@media(max-width:480px){.live-month-nine-cards{grid-template-columns:minmax(0,1fr)}}

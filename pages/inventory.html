@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FirstWell Essentials Inventory Update — scan a barcode to count, stock in or stock out">
+  <title>FirstWell Essentials · Inventory Update</title>
+  <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/inventory.css">
+</head>
+<body data-page="stock">
+<header class="fs-header"><div class="fs-header-inner"><div class="fs-brand"><span class="fs-logo"><img src="/assets/images/firstwell-essentials.png" alt="FirstWell Essentials logo" class="fs-company-logo"></span><div><strong>FirstWell <span>Essentials</span></strong><small>Inventory &amp; Business Insights</small></div></div><div class="fs-header-side"><span class="fs-indicator"><i></i> Staff workspace</span></div></div></header>
+<nav class="site-nav fs-nav" aria-label="Pages"></nav>
+<script src="/assets/js/nav.js"></script>
+
+<main class="iv">
+  <section id="login" class="iv-card iv-login" hidden>
+    <h2>Sign in to update stock</h2>
+    <p class="iv-muted">Use your inventory-app login. Your email must be on the approved staff list.</p>
+    <form id="loginForm" autocomplete="on">
+      <label>Email<input id="email" type="email" autocomplete="username" required></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+      <button class="iv-btn iv-primary" type="submit">Sign in</button>
+      <p id="loginErr" class="iv-err" role="alert" hidden></p>
+    </form>
+  </section>
+
+  <div id="app" hidden>
+    <div class="iv-top">
+      <div class="iv-tabs" role="tablist" aria-label="What do you want to do?">
+        <button type="button" role="tab" data-mode="count" aria-selected="true">Count stock</button>
+        <button type="button" role="tab" data-mode="in" aria-selected="false">Stock in</button>
+        <button type="button" role="tab" data-mode="out" aria-selected="false">Stock out</button>
+        <button type="button" role="tab" data-mode="recent" aria-selected="false">Recent</button>
+        <button type="button" role="tab" data-mode="barcodes" aria-selected="false">Barcodes</button>
+      </div>
+      <div class="iv-who"><span id="who"></span> <button type="button" id="signout" class="iv-link">Sign out</button></div>
+    </div>
+
+    <div id="scanBlock" class="iv-card">
+      <div id="linkBanner" class="iv-banner" hidden></div>
+      <div class="iv-scan">
+        <input id="scan" type="search" inputmode="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Scan barcode or type product name, then Enter" aria-label="Scan barcode or search product">
+        <button type="button" id="cam" class="iv-btn" hidden>Camera</button>
+        <button type="button" id="photo" class="iv-btn">Take photo</button>
+        <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+      </div>
+      <div id="hits" class="iv-hits" role="listbox" aria-label="Matching products"></div>
+      <label class="iv-check" id="blindWrap"><input type="checkbox" id="blind" checked> Blind count (hide the system quantity so staff count honestly)</label>
+      <p id="coverage" class="iv-muted iv-small"></p>
+    </div>
+
+    <section id="panel" class="iv-card" hidden></section>
+
+    <section id="queueBox" class="iv-card" hidden>
+      <div class="iv-row">
+        <h2>Counted this session <span id="qCount" class="iv-pill"></span></h2>
+      </div>
+      <div class="iv-scroll"><table class="iv-table" id="qTable"></table></div>
+      <div class="iv-row iv-end">
+        <button type="button" id="qClear" class="iv-btn">Clear list</button>
+        <button type="button" id="qSubmit" class="iv-btn iv-primary">Save all counts</button>
+      </div>
+    </section>
+
+    <section id="report" class="iv-card" hidden></section>
+    <section id="recent" class="iv-card" hidden></section>
+    <section id="barcodes" class="iv-card" hidden></section>
+  </div>
+</main>
+
+<div id="camBox" class="iv-cam" hidden>
+  <video id="camVideo" playsinline muted></video>
+  <div class="iv-cam-bar"><span>Point the camera at the barcode</span><button type="button" id="camClose" class="iv-btn">Close</button></div>
+</div>
+<div id="toast" class="iv-toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/assets/js/auth-ui.js"></script>
+<script src="/assets/js/inventory.js"></script>
+</body>
+</html>

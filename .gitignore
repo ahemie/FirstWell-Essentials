@@ -1,0 +1,82 @@
+
+# ==========================================
+# FIRSTWELL ESSENTIALS
+# PRIVATE PROJECT - GITIGNORE
+# ==========================================
+
+# 1. Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# 2. Local databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 3. Clinic / Shopee source reports
+source_reports/
+uploads/
+pending/
+backups/
+
+# 4. Excel / CSV exports
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+
+# 5. Local business datasets
+data/
+
+# 6. Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 7. Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# 8. Generated archives
+*.zip
+*.7z
+*.rar
+
+# 9. IDE / OS settings
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 10. Local test output
+coverage/
+htmlcov/
+.coverage
+
+# 11. Local deployment configuration
+*.local
+
+node_modules/
+firstwell-essentials/
+package.json
+package-lock.json

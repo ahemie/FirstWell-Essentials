@@ -1,0 +1,15 @@
+FIRSTSTEP — ONE UPLOAD PAGE
+
+1. Install requirements: py -m pip install -r requirements.txt
+2. Run: py app.py
+3. Open http://127.0.0.1:5501/upload.html
+4. Choose reporting month and ONE Excel file; preview, accept, and calculated source-level metrics appear.
+5. Reuse the same upload box for later reports. Identical records are skipped.
+
+IMPORTANT: This simplified page intentionally removes the six-file checklist and the Publish Month button. Existing Inventory/Business Analytics pages continue showing the last fully processed month; one partial file cannot generate cross-source analytics. Data is permanent in firstwell.db and uploads/. Back those up.
+
+CSV requires selecting its report type via Advanced options; XLS files must be converted to XLSX.
+
+PRODUCT SALES TRENDS (July-September 2026)
+----------------------------------------
+Open Inventory and click a product, or use Product Details. Product Details contains monthly units sold, average sales price/unit, and revenue graphs, keeping SGD separately from RM. July and August are Shopee data only; Clinic historical data is available from September only. Trend data is generated in data/product_trends.js from the original historical Excel files and the Sept inventory listing links. To extend history when new months are uploaded, regenerate this trend file using historical source reports.

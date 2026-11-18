@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FirstWell Essentials Action Centre — what to reorder, clear, reprice and fix this week">
+  <title>FirstWell Essentials · Action Centre</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/overview.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
+</head>
+<body data-page="overview">
+<header class="fs-header"><div class="fs-header-inner"><div class="fs-brand"><span class="fs-logo"><img src="/assets/images/firstwell-essentials.png" alt="FirstWell Essentials logo" class="fs-company-logo"></span><div><strong>FirstWell <span>Essentials</span></strong><small>Inventory &amp; Business Insights</small></div></div><div class="fs-header-side"><span class="fs-indicator"><i></i> Staff workspace</span><span id="asof" class="fs-asof"></span></div></div></header>
+<nav class="site-nav fs-nav" aria-label="Pages"></nav>
+<script src="/assets/js/nav.js"></script>
+<main class="ov" id="ov">
+  <section class="ov-hero">
+    <div>
+      <p class="ov-eyebrow">ACTION CENTRE</p>
+      <h1>What needs your attention this week</h1>
+      <p class="ov-lede" id="lede">Loading the latest month…</p>
+    </div>
+    <div class="ov-month"><label for="monthSel">Reporting month</label><select id="monthSel" disabled><option>Loading…</option></select></div>
+  </section>
+  <div id="err" class="ov-error" role="alert" hidden></div>
+  <div id="body" hidden>
+    <section class="ov-kpis" id="kpis" aria-label="Headline numbers"></section>
+
+    <section class="ov-section">
+      <div class="ov-sec-head"><div><p class="ov-eyebrow">DO THIS FIRST</p><h2>Ranked actions, biggest money first</h2></div><p class="ov-hint">Each list is sorted by RM at stake. Suggested quantities and prices are starting points, not instructions.</p></div>
+      <div class="ov-tabs" role="tablist" id="tabs"></div>
+      <div class="ov-actionpanel" id="actionPanel" role="tabpanel"></div>
+    </section>
+
+    <section class="ov-card ov-section" id="weeklyCard" aria-label="Weekly sales trend"></section>
+
+    <section class="ov-grid2">
+      <article class="ov-card" id="abcCard"></article>
+      <article class="ov-card" id="channelCard"></article>
+    </section>
+
+    <section class="ov-card ov-section" id="catCard"></section>
+    <section class="ov-card ov-section" id="rulesCard"></section>
+  </div>
+</main>
+<script src="/assets/js/analysis.js"></script>
+<script src="/assets/js/overview.js" defer></script>
+<script src="/assets/js/auth-ui.js" defer></script>
+<script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

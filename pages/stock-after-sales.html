@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FirstWell Essentials · Stock After Sales</title>
+  <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/stock-after.css">
+</head>
+<body data-page="after">
+<header class="fs-header"><div class="fs-header-inner"><div class="fs-brand"><span class="fs-logo"><img src="/assets/images/firstwell-essentials.png" alt="FirstWell Essentials logo" class="fs-company-logo"></span><div><strong>FirstWell <span>Essentials</span></strong><small>Inventory &amp; Business Insights</small></div></div><div class="fs-header-side"><span class="fs-indicator"><i></i> Staff workspace</span></div></div></header>
+<nav class="site-nav fs-nav" aria-label="Pages"></nav>
+<script src="/assets/js/nav.js"></script>
+<main class="sa">
+  <div class="sa-page">
+    <h1>Stock after sales</h1>
+    <div class="sa-tabs" role="tablist">
+      <button type="button" data-tab="up" class="sel">Upload files</button>
+      <button type="button" data-tab="hist">History</button>
+      <button type="button" data-tab="db">From saved data</button>
+    </div>
+
+    <section id="tab-up">
+      <details class="sa-help" open>
+        <summary>How to use (read first)</summary>
+        <ol>
+          <li>Put each file in its own box: <b>Inventory</b> (the Avixo report staff uploaded), <b>Shopee MY</b>, <b>Shopee SG1</b>, <b>Shopee SG2</b>, <b>Shopee PH</b>, <b>Lazada</b>, <b>TikTok</b>. Or pick them all at once and the boxes fill by file name (name them with MY, SG1, SG2, PH, LZD or Lazada, TT or TikTok). Leave a box empty if there is no file.</li>
+          <li>Press <b>Preview</b>. The page takes the stock from the Avixo report and subtracts the units sold, product by product. It does <b>not</b> touch the inventory app.</li>
+          <li>Copy the table (or download the CSV) and update Avixo. The <b>Remark</b> column is ready to paste, for example <code>17112026 SG1 x1 SG2 x1</code>: the sales date, then each platform that sold.</li>
+          <li>Press <b>Save to history</b> so you can check this calculation later in the History tab. Saving does not change any stock. The same sales file can be saved only once.</li>
+        </ol>
+        <p>To match Lazada and TikTok sales exactly, add the ID to the product <b>Comments</b> (remark) in Avixo, separated by <code>;</code>: <code>LZ|product id|sku id</code>, <code>TT|product id|0</code>. Shopee uses <code>MY|item id|variation id</code>, <code>SG1|…</code>, <code>SG2|…</code>, <code>PH|…</code> (a plain <code>SG|…</code> counts as SG1). Use <code>0</code> when there are no variations. Without a remark in Avixo, a product is matched by name only when the match is clear (marked "check"); anything unclear is listed as not matched.</p>
+      </details>
+      <div class="sa-slots">
+        <label class="sa-pick">Pick several files at once (they are placed in the right boxes by their file names)<input id="multi" type="file" multiple accept=".xlsx,.xls"></label>
+        <div class="sa-slotgrid" id="slots"></div>
+        <div class="sa-actions"><button type="button" id="calc">Preview →</button><button type="button" id="clearAll" class="alt">Clear</button></div>
+      </div>
+      <div id="upmsg" class="sa-msg" role="status" hidden></div>
+      <section id="upout"></section>
+    </section>
+
+    <section id="tab-hist" hidden>
+      <p class="sa-muted">Every saved calculation is kept here, so you can check later which files were used, who saved it and the remark for each product.</p>
+      <div id="histmsg" class="sa-msg" role="status" hidden></div>
+      <section id="histout"></section>
+    </section>
+
+    <section id="tab-db" hidden>
+      <p class="sa-muted">Takes the inventory already saved in the dashboard and subtracts the weekly sales uploads (Upload Data page). Nothing is changed in the database.</p>
+      <div class="sa-controls">
+        <label>Inventory date<select id="snap"></select></label>
+        <label>Sales from<input id="from" type="date"></label>
+        <label>Sales to<input id="to" type="date"></label>
+        <button type="button" id="go">Calculate</button>
+        <button type="button" id="csv" class="alt" disabled>Download CSV</button>
+      </div>
+      <div id="msg" class="sa-msg" role="status" hidden></div>
+      <section id="out"></section>
+    </section>
+  </div>
+</main>
+<script src="/assets/js/auth-ui.js"></script>
+<script src="/assets/js/stock-after-sales.js"></script>
+</body>
+</html>

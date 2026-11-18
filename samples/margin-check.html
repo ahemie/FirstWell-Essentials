@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Margin Check Sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky controls, summary tiles, then one sortable table. Teal palette follows the FirstWell Essentials dashboard. */
+:root{--ink:#1b2523;--muted:#5d6965;--line:#e6e0d3;--page:#f6f3ec;--card:#ffffff;--brand:#0b3d37;--accent:#178f7c;--good:#1c7a4d;--good-bg:#e6f4ec;--bad:#b3261e;--bad-bg:#fbeceb;--warn:#b06a0a;--warn-bg:#fcf1de;--th:#f3efe4;--font:'Plus Jakarta Sans',system-ui,'Segoe UI',sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#e8efed;--muted:#9fb0ab;--line:#2c3a37;--page:#0f1a18;--card:#16241f;--brand:#7fd6c4;--accent:#3fbfa8;--good:#6fd39b;--good-bg:#173528;--bad:#ff8e86;--bad-bg:#3a1c1a;--warn:#f0b563;--warn-bg:#3a2b12;--th:#1c2c28;color-scheme:dark}}
+:root[data-theme="dark"]{--ink:#e8efed;--muted:#9fb0ab;--line:#2c3a37;--page:#0f1a18;--card:#16241f;--brand:#7fd6c4;--accent:#3fbfa8;--good:#6fd39b;--good-bg:#173528;--bad:#ff8e86;--bad-bg:#3a1c1a;--warn:#f0b563;--warn-bg:#3a2b12;--th:#1c2c28;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 var(--font)}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
+h1{margin:0;font-size:22px;color:var(--brand);text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.tag{display:inline-block;background:var(--warn-bg);color:var(--warn);font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px;margin-bottom:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted);font-weight:600}
+input[type=number],input[type=search],select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-width:0}
+input[type=number]{width:96px;font-family:var(--mono)}
+input[type=search]{width:220px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tile .n{font-size:30px;font-weight:700;font-family:var(--mono);color:var(--brand)}
+.tile .l{color:var(--muted);font-size:13px}
+.tile.bad .n{color:var(--bad)}
+.tile.good .n{color:var(--good)}
+.bar{height:8px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:860px}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:260px}
+th{background:var(--th);font-size:12px;color:var(--muted);cursor:pointer;user-select:none;position:sticky;top:0}
+th[aria-sort]{color:var(--brand)}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px}
+.pill.ok{background:var(--good-bg);color:var(--good)}
+.pill.no{background:var(--bad-bg);color:var(--bad)}
+.pill.chk{background:var(--warn-bg);color:var(--warn)}
+.note{color:var(--muted);font-size:13px;max-width:90ch}
+.formula{font-family:var(--mono);font-size:12.5px;background:var(--th);border-radius:9px;padding:8px 10px;display:inline-block;margin:2px 0}
+@media (max-width:480px){input[type=search]{width:100%}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <span class="tag">Sample only</span>
+    <h1>Margin check: before vs after Shopee fee</h1>
+    <p class="sub">87 Shopee MY products with a listed price and a cost. Change the fee or the target and every row updates. Nothing here is saved or connected to the dashboard.</p>
+  </header>
+
+  <section class="card controls" aria-label="Settings">
+    <div class="field"><label for="fee">Shopee fee (%)</label><input id="fee" type="number" min="0" max="60" step="0.5" value="20"></div>
+    <div class="field"><label for="target">Target margin (%)</label><input id="target" type="number" min="0" max="90" step="1" value="40"></div>
+    <div class="field"><label for="basis">Judge the target on</label>
+      <select id="basis"><option value="after">After fee (real profit)</option><option value="gm">Before fee (dashboard GM)</option></select></div>
+    <div class="field"><label for="show">Show</label>
+      <select id="show"><option value="all">All products</option><option value="below">Below target</option><option value="meets">Meets target</option><option value="check">Data to check</option></select></div>
+    <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Product name"></div>
+  </section>
+
+  <section class="tiles" aria-label="Summary">
+    <div class="card tile good"><div class="n" id="t-gm">0</div><div class="l">meet the target on dashboard GM (before fee)</div><div class="bar"><i id="b-gm"></i></div></div>
+    <div class="card tile bad"><div class="n" id="t-net">0</div><div class="l">meet the target after the fee</div><div class="bar"><i id="b-net"></i></div></div>
+    <div class="card tile"><div class="n" id="t-chk">0</div><div class="l">rows to check (negative or above 85% GM)</div></div>
+  </section>
+
+  <section>
+    <div class="tablewrap">
+      <table id="tbl">
+        <thead><tr id="head"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card note">
+    <div><strong>How it is worked out</strong></div>
+    <div class="formula">GM = (price − cost) ÷ price</div><br>
+    <div class="formula">After fee = (price × (1 − fee) − cost) ÷ price = GM − fee</div><br>
+    <div class="formula">Price needed = cost ÷ (1 − target)  or  cost ÷ (1 − fee − target)</div>
+    <p>Cost is the latest Avixo cost per unit (snapshot of 1 Nov 2026). Price is the latest Shopee MY listing price in the dashboard. The fee is one flat percentage you set, with vouchers at zero, so the after-fee column is an estimate. Shopee's real deductions vary by category, programme and SST; check them in Seller Centre under My Income.</p>
+  </section>
+</main>
+<script>
+const DATA = [["Aerochamber Adult Small Mask (PURPLE)",94.64,148.3],["Aerochamber Child Mask (YELLOW)",85.68,134.9],["Aerochamber Plus above 5 years (BLUE)",48.41,77.8],["Appeton Baby Drops",45.24,77.5],["Appeton Multivitamin Lysine syrup 120mL",35.83,67.4],["Atono Bath & Shampoo 300g (OFF)",39.13,60.4],["Atono Oxygen CREAM 160g (OFF)",46.13,71.4],["Aveeno baby daily moisture lotion 100g",16.9,36.5],["Aveeno baby daily moisture lotion 227g",26.8,50.3],["Benzac Moderate Acne gel 5% 15g",7.46,17.3],["Benzac Moderate Acne gel 5% 60g",23.11,45.9],["Bepanthen baby ointment 100G (BIG)",19.06,35.6],["Bepanthen baby ointment 30G (SMALL)",7.12,18.2],["Bepanthen Itch Relief cream 20g",15,28.4],["Bepanthen Sensidaily Cream 200ml",45,78.9],["Bepanthen Sensiwash 400ml",43,76.2],["Berocca Effervescent Mango Tab 15s",16,28.5],["Berocca Effervescent Orange Tab 15s",16,30.4],["BioAkE Xerophy anti-scratching cream 100ml",43.48,77.5],["Buds Calming Rub Cream BIG 50ml (TUBE)",48.62,84.9],["Buds Calming Rub Cream SMALL 30ml (TUBE)",34,60.3],["Cetaphil Baby Advanced Protect Cream 85G",17.5,30.5],["Cetaphil BABY calendula LOTION 400ml",46.61,78.5],["Cetaphil BABY calendula WASH SHAMPOO 230ml",24.86,47.4],["Cetaphil BABY calendula WASH SHAMPOO 400ml",30,71.6],["CETAPHIL BABY DIAPER CREAM 70G",18.64,36.5],["Cetaphil PRO AD Derma Moisturizer 295ml",67.36,113.9],["Cetaphil PRO AD Derma WASH 295ml",43.57,82.5],["Cetaphil PRO AD REPAIR cream 226G",73.46,132.5],["Champs Multivitamin + Folic & Taurine",11,31.5],["Champs Vitamin C 100mg (BLACKCURRANT)",11,21.6],["Diapocare",16.4,33.5],["Escaban Silicone Gel for Scar",36.36,64.5],["Eucerin Omega Ato-calming Balm 200mL",61.25,104.5],["Eucerin Omega Bath and Shower Oil 400mL",70.63,119.5],["Eucerin Omega Plus 40mL",53.13,93.5],["EVIN sinus rinse refill 30 sachet (OFF)",12.3,22.5],["EVIN sinus rinse start kit with 10 refill",13.1,24.2],["INVEGIBLE natural fibre drink 30 sachets",70,116.8],["Medson DERMASEP+OCTENIDINE wash lotion 100ml (OFF)",23.34,37.5],["MEDSONS Pine Tar Cleanser 100g (SMALL) (OFF)",21,37.9],["MEDSONS Pine Tar cleanser 220g(BIG) (OFF)",31.8,62.4],["MUSTELA 50+ sun lotion 100ml (BIG)",57.2,95.6],["MUSTELA 50+ sun lotion 40ml (SMALL)",41.6,73.5],["Mustela Soothing Cleansing Gel 300ml (PINK)",37.44,77.9],["Mustela Soothing Moisturising Lotion 200ml  (PINK)",43.16,71.6],["Mustela Soothing Moisturizing Cream Face 40ml (PINK)",25.48,49.5],["Mustela Stelatopia Cleansing Gel 200ml",46.8,92.4],["Mustela Stelatopia cleansing oil 500ml",70.72,121.5],["MUSTELA Stelatopia Emollient Face Cream and Eyelids",32.24,62.8],["Mustela Stelatopia lipid replenishing cream 150ml (BOX)",58.75,111.3],["Mustela Stelatopia lipid replenishing cream 300ml (BOTTLE)",113.4,183.9],["Mustela Vitamin Barrier Cream (BIG) 100ml",27.56,55.1],["Mustela Vitamin Barrier Cream (SMALL) 50ml",18.2,37.6],["Nasocare with XYLITOL 50ml (Small)",11.92,28.4],["Nasogel GEL tube 28g",23.7,44.2],["Nasogel SPRAY 30ml",23.7,44.2],["Neilmed Sinus Rinse Paediatric Sachets 120's",64.7,103.5],["Neilmed Sinus Rinse Pediatric 30's",40.2,72.4],["NEMO MDI Spacer (CHILD)",36,59.5],["NEMO MDI Spacer (INFANT)",36,59.5],["Nixoderm Deodorant Men 50mlx2 (OFF)",12,23.5],["No More Cough Sensitive 6s",15,27.3],["Pororo Kids Vitamin C 10's",4.76,32.4],["Q Gummy - Vitamin C (OFF)",24.55,9.8],["QV Dermcare Cream with ceramide 350ml (OFF)",98.06,156.5],["QV Dermcare sting-free Ointment 200g",60,111.8],["QV Dermcare Wash with ceramide 350ml",51.53,89.6],["QV flare up bath oil 200ml",24.92,57.5],["QV Flare up cream Glycerol 10%",30.24,61.3],["Relife Relizema Cream (BIG) 100ml tube",60.3,99.4],["Relife Relizema Cream (SMALL)40ml tube",35,62.4],["Smartbuddy - FIBRE UP",24.6,47.5],["Smartbuddy - GROW UP",25.54,47.5],["Smartbuddy Iron, Lysine, Vitamin B/D/C3 120ml",30,51.4],["Smartbuddy wellness -omega3,calcium,Vit D 120ml",25.96,49.4],["Suu Balm Itch Relief Moisturizer 75 ml (Adult)",38.81,68.4],["Vitasen Daily Multivitamin plus lysine (CHOCOLATE) 60's",21.65,37.6],["Vitasen Daily Multivitamin plus lysine (ORANGE) 60's",21.65,37.6],["Wet baby wipes SMALL 30's",1.95,5.8],["Youvit Kids Multivitamin 30 days (BIG)",20.18,31.4],["Youvit Kids Multivitamin 7 days (SMALL)",6.68,10.9],["ZEHO ceramide CREAM 40g",38.11,66.5],["ZEHO ceramide LOTION (SMALL) 280mL",29.61,58.5],["Zeho Ceramide Lotion 500ml (BIG)",30.09,78.8],["ZEHO Extra Gentle CLEANSER for Face and Body 250mL",26.31,50.4],["ZEHO MicroAg+ Cream 40g",45.72,80.9]];   // [name, cost RM, Shopee MY price RM]
+const cols = [
+  {k:'name', t:'Product', s:r=>r.name.toLowerCase()},
+  {k:'cost', t:'Cost (RM)', s:r=>r.cost},
+  {k:'price', t:'Price (RM)', s:r=>r.price},
+  {k:'gm', t:'GM before fee', s:r=>r.gm},
+  {k:'net', t:'After fee', s:r=>r.net},
+  {k:'need', t:'Price needed (RM)', s:r=>r.need===null?1e9:r.need},
+  {k:'gap', t:'Add to price (RM)', s:r=>r.gap},
+  {k:'st', t:'Status', s:r=>r.status}
+];
+let sortKey='net', sortDir=1;   // lowest after-fee margin first
+const $=id=>document.getElementById(id);
+const fmt=(n,d=2)=>n.toLocaleString('en-MY',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=n=>fmt(n*100,1)+'%';
+
+function compute(){
+  const fee=(parseFloat($('fee').value)||0)/100, target=(parseFloat($('target').value)||0)/100, basis=$('basis').value;
+  return DATA.map(([name,cost,price])=>{
+    const gm=(price-cost)/price, net=gm-fee, eff=basis==='gm'?target:target+fee;
+    const need = eff<1 ? cost/(1-eff) : null;
+    const margin = basis==='gm'?gm:net;
+    const meets = margin>=target-1e-9;
+    const check = gm<0 || gm>0.85;
+    const gap = need===null?0:Math.max(0,need-price);
+    const status = check?'check':(meets?'ok':'no');
+    return {name,cost,price,gm,net,need,gap,meets,check,status};
+  });
+}
+function render(){
+  const all=compute(), fee=(parseFloat($('fee').value)||0)/100, target=(parseFloat($('target').value)||0)/100;
+  const gmOk=all.filter(r=>r.gm>=target-1e-9&&!r.check).length, netOk=all.filter(r=>r.net>=target-1e-9&&!r.check).length, chk=all.filter(r=>r.check).length;
+  $('t-gm').textContent=gmOk+' / '+all.length; $('t-net').textContent=netOk+' / '+all.length; $('t-chk').textContent=chk;
+  $('b-gm').style.width=(gmOk/all.length*100)+'%'; $('b-net').style.width=(netOk/all.length*100)+'%';
+  const q=$('q').value.trim().toLowerCase(), show=$('show').value;
+  let rows=all.filter(r=>(!q||r.name.toLowerCase().includes(q)) && (show==='all'||(show==='below'&&!r.meets&&!r.check)||(show==='meets'&&r.meets&&!r.check)||(show==='check'&&r.check)));
+  const col=cols.find(c=>c.k===sortKey); rows.sort((a,b)=>{const x=col.s(a),y=col.s(b);return (x<y?-1:x>y?1:0)*sortDir});
+  const head=$('head'); head.innerHTML='';
+  cols.forEach(c=>{const th=document.createElement('th');th.textContent=c.t+(sortKey===c.k?(sortDir>0?' ▲':' ▼'):'');th.tabIndex=0;
+    if(sortKey===c.k)th.setAttribute('aria-sort',sortDir>0?'ascending':'descending');
+    const go=()=>{if(sortKey===c.k)sortDir*=-1;else{sortKey=c.k;sortDir=1}render()};
+    th.onclick=go;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}};head.appendChild(th)});
+  const body=$('body'); body.innerHTML='';
+  rows.forEach(r=>{const tr=document.createElement('tr');
+    const cells=[r.name,fmt(r.cost),fmt(r.price),pct(r.gm),pct(r.net),r.need===null?'n/a':fmt(r.need),r.gap>0?'+'+fmt(r.gap):'0.00'];
+    cells.forEach((v,i)=>{const td=document.createElement('td');td.textContent=v;if(i>0)td.className='num';tr.appendChild(td)});
+    const td=document.createElement('td');const p=document.createElement('span');p.className='pill '+(r.check?'chk':r.meets?'ok':'no');
+    p.textContent=r.check?'Check data':r.meets?'Meets':'Below';td.appendChild(p);tr.appendChild(td);body.appendChild(tr)});
+  if(!rows.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=8;td.textContent='No products match.';tr.appendChild(td);body.appendChild(tr)}
+}
+['fee','target','basis','show','q'].forEach(id=>$(id).addEventListener('input',render));
+render();
+</script>
+</body>
+</html>
