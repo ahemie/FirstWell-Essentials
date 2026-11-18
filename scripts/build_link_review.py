@@ -43,13 +43,20 @@ def main():
     ap.add_argument('--inventory', required=True)
     ap.add_argument('--price', required=True)
     ap.add_argument('--sales', nargs='*', default=[])
+    ap.add_argument('--firststep-inventory', help="FirstStep's Avixo Inventory Report: listings not in this shop's Avixo "
+                    'are matched there next, with IDs written as FS-<id>')
     ap.add_argument('--market', default='MY', choices=['MY', 'SG'])
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
 
     products, _, _ = read_inventory(a.inventory)
     products = [p for p in products if str(p.get('id') or '').strip()]
-    pid = lambda p: str(p['id']).strip()[:-2] if str(p['id']).strip().endswith('.0') else str(p['id']).strip()
+    raw_id = lambda p: str(p['id']).strip()[:-2] if str(p['id']).strip().endswith('.0') else str(p['id']).strip()
+    pid = lambda p: p.get('prefix', '') + raw_id(p)
+    fs_products = []
+    if a.firststep_inventory:
+        fs_products, _, _ = read_inventory(a.firststep_inventory)
+        fs_products = [dict(p, prefix='FS-') for p in fs_products if str(p.get('id') or '').strip()]
 
     units_item, units_var, names = defaultdict(float), defaultdict(float), {}
     cols = ('Units (Confirmed Order)', 'Sales (Confirmed Order) (MYR)') if a.market == 'MY' else ('Units (Paid Order)', 'Sales (Paid Order) (SGD)')
@@ -74,13 +81,15 @@ def main():
         for v in (vs if multi else vs[:1]):
             var_name = v['var_name'] if multi else ''
             best, ranked = pick(vs[0]['name'], var_name, products)
+            if not best and fs_products:
+                best, _ = pick(vs[0]['name'], var_name, fs_products)
             sold = units_var.get((item, v['var']), 0) if multi else units_item.get(item, 0)
             top = ranked[0][1]
             lines.append(dict(market=a.market, item=item, var=v['var'] if multi else '0', name=vs[0]['name'],
                               var_name=var_name, units=sold,
                               sug_id=pid(best or top), sug_name=(best or top)['name'], score=round(ranked[0][0], 3),
                               alt=f"{pid(ranked[1][1])}: {ranked[1][1]['name']}", use=pid(best) if best else '',
-                              confident=bool(best)))
+                              confident=bool(best), firststep=bool(best and best.get('prefix'))))
     lines.sort(key=lambda x: (-x['units'], x['name'], x['var']))
 
     wb = openpyxl.Workbook()
@@ -92,11 +101,12 @@ def main():
     ws.append(head)
     yellow = PatternFill('solid', fgColor='FFF4C2')
     green = PatternFill('solid', fgColor='DFF5E9')
+    blue = PatternFill('solid', fgColor='DCEBFF')
     for i, x in enumerate(lines, start=2):
         ws.append([x['market'], x['item'], x['var'], x['name'], x['var_name'], x['units'], x['sug_id'], x['sug_name'],
                    x['score'], x['alt'], x['use'],
                    f'=IF(K{i}="","",IFERROR(VLOOKUP(K{i},\'Avixo products\'!A:B,2,FALSE),IF(UPPER(K{i})="FREE","Free gift (no product)","NOT FOUND - check ID")))'])
-        ws.cell(i, 11).fill = green if x['confident'] else yellow
+        ws.cell(i, 11).fill = blue if x.get('firststep') else green if x['confident'] else yellow
     for c in ws[1]:
         c.font = Font(bold=True, color='FFFFFF')
         c.fill = PatternFill('solid', fgColor='0B3D37')
@@ -110,6 +120,8 @@ def main():
     ps.append(['Avixo ID', 'Product name', 'Category'])
     for p in sorted(products, key=lambda p: p['name'].lower()):
         ps.append([pid(p), p['name'], p.get('cat')])
+    for p in sorted(fs_products, key=lambda p: p['name'].lower()):          # FirstStep Avixo, IDs FS-<id>
+        ps.append([pid(p), p['name'], 'FirstStep stock'])
     ps.column_dimensions['A'].width = 10
     ps.column_dimensions['B'].width = 60
     for c in ps[1]:
@@ -122,19 +134,21 @@ def main():
         ['1. Go to sheet "Links". Column K "Avixo ID to use" decides the link. Column L shows the product name for the ID you typed — check it.'],
         ['2. GREEN = matched automatically to the Avixo Inventory Report (same brand, size and variant). Already filled in.'],
         ['3. YELLOW = no clear Avixo product, left empty, so the website leaves it out. To link one anyway, type its Avixo ID in K.'],
+        ['   BLUE = not in this Avixo report but found in FirstStep\'s Avixo (stock kept at FirstStep). ID starts with FS-.'],
         ['4. Free gift / bundle with no Avixo product: type FREE in K. Leave K empty to skip a listing.'],
         ['5. Listings with sizes/flavours have one row per Variation ID — each can go to a different Avixo product.'],
         ['6. Save, then upload this file on the website: Upload Data > Shopee listing links.'],
         ['   Sales already uploaded are re-matched automatically. Do not change columns A-C.'],
         [''],
-        [f'Rows: {len(lines)} · pre-filled (green): {sum(x["confident"] for x in lines)} · to check (yellow): {sum(not x["confident"] for x in lines)}'],
+        [f'Rows: {len(lines)} · this shop\'s Avixo (green): {sum(x["confident"] and not x.get("firststep") for x in lines)} · FirstStep Avixo (blue): {sum(bool(x.get("firststep")) for x in lines)} · not found (yellow): {sum(not x["confident"] for x in lines)}'],
     ]:
         how.append(line)
     how['A1'].font = Font(bold=True, size=14)
     how.column_dimensions['A'].width = 120
     wb.active = 1
     wb.save(a.out)
-    print(f'{len(lines)} rows, {sum(x["confident"] for x in lines)} pre-filled, saved {a.out}')
+    print(f'{len(lines)} rows, {sum(x["confident"] and not x.get("firststep") for x in lines)} own Avixo, '
+          f'{sum(bool(x.get("firststep")) for x in lines)} FirstStep Avixo, saved {a.out}')
 
 
 if __name__ == '__main__':

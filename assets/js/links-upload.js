@@ -19,6 +19,7 @@
       ['Rows with an Avixo ID / FREE', res.rows_in_file],
       ['Shopee listings in the file', res.listings_in_file],
       ['Free gifts (FREE)', res.free_items],
+      ['FirstStep Avixo products added (FS-)', res.firststep_products_added],
       ['Links before → after', `${res.links_before} → ${res.links_after}`],
       [saved ? 'Sales rows re-matched' : 'Sales rows that will be re-matched', res.sales_rows_rematched],
       ['Sales rows still unmapped after this (parent / variation)', `${res.sales_parent_rows_unmapped_after} / ${res.sales_variation_rows_unmapped_after}`],

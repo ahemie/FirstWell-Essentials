@@ -42,10 +42,12 @@ class DB:
     def table(s, name): return Q(s.data, name)
 
 
-def sheet(rows):
+def sheet(rows, fs=()):
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Links'
     ws.append(['Marketplace', 'Shopee item ID', 'Variation ID', 'Shopee product name', 'Avixo ID to use'])
     for r in rows: ws.append(r)
+    ps = wb.create_sheet('Avixo products'); ps.append(['Avixo ID', 'Product name', 'Category'])
+    for r in fs: ps.append(r)
     b = io.BytesIO(); wb.save(b); b.seek(0); return b
 
 
@@ -95,3 +97,16 @@ assert bad['can_save'] is False and bad['unknown_avixo_ids'] == ['77']
 clash = c.post('/api/links/preview', data={'market': 'MY', 'file': (sheet([['MY', '555', '0', 'x', '10'], ['MY', '555', '0', 'x', '20']]), 'l.xlsx')})
 assert clash.status_code == 400 and 'two different' in clash.get_json()['error']
 print('PASS: unknown Avixo IDs and conflicting rows are refused')
+
+fsr = c.post('/api/links/save', data={'market': 'MY', 'file': (sheet([['MY', '666', '0', 'Ivygard', 'FS-938']],
+             [['FS-938', "Ivygard Ivy Leaf Drops 6's", 'FirstStep stock']]), 'l.xlsx')}).get_json()
+assert fsr['ok'] and fsr['firststep_products_added'] == 1, fsr
+made = [p for p in data['products'] if p['avixo_id'] == 'FS-938'][0]
+assert made['category'] == 'FirstStep stock' and any(x['shopee_item_id'] == '666' and x['product_id'] == made['id']
+                                                      for x in data['product_channel_links'])
+again = c.post('/api/links/preview', data={'market': 'MY', 'file': (sheet([['MY', '666', '0', 'Ivygard', 'FS-938']],
+               [['FS-938', "Ivygard Ivy Leaf Drops 6's", 'FirstStep stock']]), 'l.xlsx')}).get_json()
+assert again['firststep_products_added'] == 0
+missing = c.post('/api/links/preview', data={'market': 'MY', 'file': (sheet([['MY', '667', '0', 'x', 'FS-1']]), 'l.xlsx')}).get_json()
+assert missing['unknown_avixo_ids'] == ['FS-1']
+print('PASS: FirstStep Avixo products (FS-) are created once and linked')

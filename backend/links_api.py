@@ -7,8 +7,11 @@ How links are stored: product_channel_links keeps dated sets; the sales uploader
 observed_on date. Saving therefore writes a complete new set dated today: the previous newest set, with every
 Shopee item that appears (filled in) in the workbook replaced by the workbook rows.
 Column "Avixo ID to use": an Avixo ID links the row; FREE marks a free gift (listing_flags); empty = skip.
+IDs starting with FS- are FirstStep Avixo products (stock kept at FirstStep). They are created in this database as
+products (category "FirstStep stock") from the sheet "Avixo products" the first time they are used.
 """
 import datetime as dt
+import uuid as uuidlib
 import tempfile
 from collections import defaultdict
 from pathlib import Path
@@ -66,7 +69,16 @@ def read_links_workbook(path, market):
     for item, vars_ in by_item.items():
         if '0' in vars_ and len(vars_) > 1:
             problems.append(f'Listing {item}: has a whole-listing row and variation rows; keep only one kind')
-    return rows, problems
+    extra = {}
+    if 'Avixo products' in wb.sheetnames:
+        for r in wb['Avixo products'].iter_rows(min_row=2, values_only=True):
+            pid = ident(r[0] if r else None)
+            if pid.upper().startswith('FS-') and len(r) > 1 and r[1]:
+                extra[pid.upper()] = str(r[1]).strip()[:200]
+    for x in rows:
+        if x['avixo'].upper().startswith('FS-'):
+            x['avixo'] = x['avixo'].upper()
+    return rows, problems, extra
 
 
 def newest_set(db, market):
@@ -91,9 +103,15 @@ def lookups(link_set):
     return exact, only_parent
 
 
-def plan(db, rows, market):
+def plan(db, rows, market, extra=None):
     products = fetch_all(db, 'products', 'id,avixo_id,name', sort='avixo_id')
     by_avixo = {ident(p['avixo_id']): p for p in products}
+    new_products = []
+    for avixo in sorted({x['avixo'] for x in rows if x['avixo'].startswith('FS-')} - set(by_avixo)):
+        if avixo in (extra or {}):
+            p = dict(id=str(uuidlib.uuid4()), avixo_id=avixo, name=extra[avixo], category='FirstStep stock')
+            new_products.append(p)
+            by_avixo[avixo] = p
     unknown = sorted({x['avixo'] for x in rows if x['avixo'] != 'FREE' and x['avixo'] not in by_avixo})
     old, old_date = newest_set(db, market)
     touched = {x['item'] for x in rows}
@@ -131,8 +149,8 @@ def plan(db, rows, market):
                    listings_in_file=len(touched), free_items=len(free), unknown_avixo_ids=unknown,
                    sales_rows_rematched=sum(len(v) for v in p_updates.values()) + sum(len(v) for v in v_updates.values()),
                    sales_parent_rows_unmapped_after=still[0], sales_variation_rows_unmapped_after=still[1],
-                   previous_links_date=old_date)
-    return summary, new, free, p_updates, v_updates
+                   previous_links_date=old_date, firststep_products_added=len(new_products))
+    return summary, new, free, p_updates, v_updates, new_products
 
 
 def _with_file(handler):
@@ -146,7 +164,7 @@ def _with_file(handler):
         path = Path(folder) / secure_filename(uploaded.filename)[:180]
         uploaded.save(path)
         try:
-            rows, problems = read_links_workbook(str(path), market)
+            rows, problems, extra = read_links_workbook(str(path), market)
         except ValueError as e:
             return fail(str(e))
         except Exception:
@@ -156,14 +174,14 @@ def _with_file(handler):
         return fail('Fix these rows first: ' + ' | '.join(problems[:8]) + (' …' if len(problems) > 8 else ''))
     if not rows:
         return fail('No rows have "Avixo ID to use" filled in.')
-    return handler(rows, market)
+    return handler(rows, market, extra)
 
 
 @bp.post('/preview')
 def preview():
-    def run(rows, market):
+    def run(rows, market, extra):
         try:
-            summary, *_ = plan(client(), rows, market)
+            summary, *_ = plan(client(), rows, market, extra)
         except Exception:
             current_app.logger.exception('Links preview failed')
             return fail('Could not check the links against Supabase.', 503)
@@ -173,10 +191,10 @@ def preview():
 
 @bp.post('/save')
 def save():
-    def run(rows, market):
+    def run(rows, market, extra):
         db = client()
         try:
-            summary, new, free, p_updates, v_updates = plan(db, rows, market)
+            summary, new, free, p_updates, v_updates, new_products = plan(db, rows, market, extra)
         except Exception:
             current_app.logger.exception('Links plan failed')
             return fail('Could not check the links against Supabase.', 503)
@@ -184,6 +202,8 @@ def save():
             return fail('These Avixo IDs are not in the product list: ' + ', '.join(summary['unknown_avixo_ids'][:15]))
         today = dt.datetime.now(KL).date().isoformat()
         try:
+            if new_products:
+                db.table('products').insert(new_products).execute()
             records = [dict(product_id=pid, observed_on=today, marketplace=market, shopee_item_id=item, shopee_variation_id=var)
                        for (item, var), pid in sorted(new.items())]
             db.table('product_channel_links').delete().eq('observed_on', today).eq('marketplace', market).execute()
