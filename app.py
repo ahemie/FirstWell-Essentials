@@ -839,6 +839,10 @@ register_weekly_sales_api(app)
 from backend.stock_after_sales_api import register_stock_after_sales_api
 register_stock_after_sales_api(app)
 
+# Shopee listing -> Avixo product links (review sheet upload) + re-match of uploaded sales.
+from backend.links_api import register_links_api
+register_links_api(app)
+
 
 @app.after_request
 def prevent_sensitive_caching(response):

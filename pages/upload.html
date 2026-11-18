@@ -73,6 +73,16 @@ Prices always come from the Price column, never Cost Price.</p>
       <section class="panel"><h2>How uploads work</h2><div class="steps"><div class="step"><span class="number">1</span><div><b>Select one file</b><div class="sub">Choose the correct reporting month and file type.</div></div></div><div class="step"><span class="number">2</span><div><b>Preview the comparison</b><div class="sub">See new, identical, changed, and missing records.</div></div></div><div class="step"><span class="number">3</span><div><b>Confirm when safe</b><div class="sub">Identical imports are skipped. Conflicting uploads are blocked for review.</div></div></div></div><div class="message warn topgap">Singapore listing prices should be uploaded only after your team approves the updated SG price export.</div></section>
     </div>
   </div>
+  <section class="panel lower" id="linksPanel">
+    <h2>Shopee listing links</h2>
+    <p class="sub">Tells the website which Shopee listing is which Avixo product, so sales are not "Unmapped". Upload the <b>Shopee Links</b> review sheet after checking column K "Avixo ID to use" (an Avixo ID, <b>FREE</b> for free gifts, or empty to skip). Sales you already uploaded are re-matched automatically.</p>
+    <form id="linksForm" class="fieldgrid">
+      <div><label for="linksMarket">Marketplace</label><select id="linksMarket"><option value="MY">Shopee MY</option><option value="SG">Shopee SG</option></select></div>
+      <div class="fieldwide"><label for="linksFile">Shopee links sheet (.xlsx)</label><input id="linksFile" type="file" accept=".xlsx" required></div>
+      <div class="actions"><button type="submit" id="linksCheckBtn">Check file →</button><button type="button" id="linksSaveBtn" class="secondary" disabled>Save links</button></div>
+    </form>
+    <div id="linksResult" class="topgap" aria-live="polite"></div>
+  </section>
   <section class="panel lower"><div class="hero" style="margin:0 0 12px"><div><h2>Monthly sales overview</h2><p class="sub">Cleaned reporting view. Parent and variation rows are not double-counted. MYR and SGD stay separate.</p></div><button id="refreshBtn" class="secondary" type="button">↻ Refresh</button></div><div class="tablewrap" id="summaryBox"><div class="empty">Loading…</div></div></section>
   <section class="panel lower"><h2>Recent Supabase imports</h2><p class="sub">Import history includes the earlier scripts as well as new uploads.</p><div class="tablewrap" id="historyBox"><div class="empty">Loading…</div></div></section>
   <section class="panel lower"><h2>Deleted files</h2><p class="sub">Every deletion is recorded with the staff email that did it. This list cannot be edited from the website.</p><div class="tablewrap" id="deletionsBox"><div class="empty">Loading…</div></div></section>
@@ -121,7 +131,7 @@ Prices always come from the Price column, never Cost Price.</p>
   <p class="fine">Only whole uploads inside the selected dates are counted. Shopee MY is in MYR and Shopee SG in SGD; they are never added together. Clinic shows units only.</p>
   </div>
 </main>
-<script src="/assets/js/upload.js" defer></script><script src="/assets/js/weekly-sales.js" defer></script><script src="/assets/js/auth-ui.js"></script>
+<script src="/assets/js/upload.js" defer></script><script src="/assets/js/links-upload.js" defer></script><script src="/assets/js/weekly-sales.js" defer></script><script src="/assets/js/auth-ui.js"></script>
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body></html>

@@ -183,7 +183,7 @@ def prepare(path, kind, month, snapshot, db, clinic_price_mode="historical"):
         for (item,var), val in variations.items():
             item,var=ident(item),ident(var)
             if not item or not var or var=='-':raise ValueError('Invalid Shopee variation identifier')
-            uuid=exact.get((item,var))
+            uuid=exact.get((item,var)) or only_parent.get(item)   # whole-listing link covers its variations
             v_rows.append(dict(report_month=report_date,marketplace=market,shopee_item_id=item,shopee_variation_id=var,
                 units_sold=d(val.get('units') or 0),sales_amount=d(val.get('sales') or 0),currency=currency,
                 product_id=uuid,mapping_basis='latest observed Avixo links; historical association provisional' if uuid else None,
