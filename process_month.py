@@ -189,9 +189,11 @@ def main():
     ap.add_argument('--movement', required=True)
     ap.add_argument('--my-price', required=True)
     ap.add_argument('--my-perf', required=True)
-    ap.add_argument('--sg-price', required=True)
-    ap.add_argument('--sg-perf', required=True)
-    ap.add_argument('--fx', type=float, required=True, help='MYR per 1 SGD')
+    ap.add_argument('--sg-price', help='Shopee SG price file (leave out if the shop has no SG)')
+    ap.add_argument('--sg-perf', help='Shopee SG sales file (leave out if the shop has no SG)')
+    ap.add_argument('--fx', type=float, default=1.0, help='MYR per 1 SGD (only used with SG files)')
+    ap.add_argument('--links', help='Shopee links sheet (FirstWell_Shopee_Links_MY.xlsx). Used instead of the Avixo '
+                    'Comments column. FS-<id> rows are FirstStep Avixo products: added with 0 stock here.')
     ap.add_argument('--stock-date', help='YYYY-MM-DD the stock snapshot represents (default: first day after the month)')
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
@@ -202,12 +204,32 @@ def main():
     products, batches, inv_date = read_inventory(a.inventory)
     movement, mov_period = read_movement(a.movement)
     my_pv, my_pi = read_shopee_price(a.my_price)
-    sg_pv, sg_pi = read_shopee_price(a.sg_price)
+    sg_pv, sg_pi = read_shopee_price(a.sg_price) if a.sg_price else ({}, {})
     my_par, my_var = read_shopee_perf(a.my_perf, 'Units (Confirmed Order)', 'Sales (Confirmed Order) (MYR)')
-    sg_par, sg_var = read_shopee_perf(a.sg_perf, 'Units (Paid Order)', 'Sales (Paid Order) (SGD)')
+    sg_par, sg_var = read_shopee_perf(a.sg_perf, 'Units (Paid Order)', 'Sales (Paid Order) (SGD)') if a.sg_perf else ({}, {})
     shop = {'MY': (my_par, my_var, my_pi, my_pv, 1.0), 'SG': (sg_par, sg_var, sg_pi, sg_pv, a.fx)}
 
-    link_use = collections.Counter(l for p in products for l in parse_links(p['comments']))
+    def clean_id(v):
+        t = str(v if v is not None else '').strip()
+        return t[:-2] if t.endswith('.0') and t[:-2].isdigit() else t
+    sheet_links = None
+    if a.links:
+        from backend.links_api import read_links_workbook
+        sheet_links = collections.defaultdict(list)
+        for market in ('MY', 'SG'):
+            try:
+                rows, problems, extra = read_links_workbook(a.links, market)
+            except ValueError:
+                continue
+            for r in rows:
+                if r['avixo'] != 'FREE':
+                    sheet_links[r['avixo']].append((market, r['item'], r['var']))
+        have = {clean_id(p['id']) for p in products}
+        for fs_id in sorted(k for k in sheet_links if k.startswith('FS-') and k not in have):
+            products.append(dict(id=fs_id, name=extra.get(fs_id, fs_id), cat='FirstStep stock', unit=None, latest_cost=None,
+                                 price=None, summary_balance=None, comments='', firststep=True))
+    links_for = (lambda p: sheet_links.get(clean_id(p['id']), [])) if sheet_links is not None else (lambda p: parse_links(p['comments']))
+    link_use = collections.Counter(l for p in products for l in links_for(p))
     report = collections.Counter()
     out = []
     inv_names = set()
@@ -225,7 +247,9 @@ def main():
             rec['b'] = dated
         rec['x'] = dated[0][0] if dated else None
 
-        for market, item, var in parse_links(p['comments']):
+        if p.get('firststep'):
+            rec['fl'] = ['Stock kept at FirstStep']
+        for market, item, var in links_for(p):
             if market not in shop:
                 continue
             par, varp, price_item, price_var, fx = shop[market]

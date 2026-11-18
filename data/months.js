@@ -1,0 +1,12 @@
+window.DASHBOARD_MONTHS = [
+  {
+    "key": "2026-09",
+    "label": "Sep 2026",
+    "file": "2026-09.json"
+  },
+  {
+    "key": "2026-10",
+    "label": "Oct 2026",
+    "file": "2026-10.json"
+  }
+];
