@@ -125,8 +125,7 @@ def shopee_listing_catalogue(links, prices, products_by_id, flags=None):
                                          'avixo_id': None, 'item_id': item, 'mapped': False,
                                          'flag': flag.get('flag') or 'free_item'})
             continue
-        out[market].setdefault(key, {'key': key, 'name': f'Unmapped listing {item}', 'avixo_id': None,
-                                     'item_id': item, 'mapped': False})
+        # FirstWell: a listing with no Avixo product link is left out (only Avixo products are listed).
     return {market: sorted(items.values(), key=lambda x: (x['name'].casefold(), x['key']))
             for market, items in out.items()}
 

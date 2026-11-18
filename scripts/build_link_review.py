@@ -8,8 +8,6 @@ Staff check the sheet, fill "Avixo ID to use", then upload it in Upload Data > S
 Suggestions are only suggestions: similar names (e.g. Frisolac HA vs AR) can be wrong.
 """
 import argparse
-import difflib
-import re
 from collections import defaultdict
 
 import openpyxl
@@ -18,32 +16,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from process_month import read_inventory, read_shopee_perf
 
-STOP = {'for', 'and', 'the', 'with', 'halal', 'of', 'exp', 'pcs', 'free', 'new', 'in', 'to', 'by', 'x'}
-
-
-def clean(name):
-    s = str(name or '').lower()
-    s = re.sub(r'\[?\(?exp[^|\]\)]*[\]\)]?', ' ', s)          # drop "EXP: 03/2028" parts
-    return s
-
-
-def tokens(name):
-    s = clean(name)
-    out = set()
-    for t in re.findall(r'[a-z]+\+?|\d+(?:\.\d+)?\s*(?:ml|mls|g|mg|s|l|kg|tabs?|caps?)?', s):
-        t = t.replace(' ', '').replace('mls', 'ml')
-        if t and t not in STOP:
-            out.add(t)
-    return out
-
-
-def score(listing, product):
-    a, b = tokens(listing), tokens(product)
-    if not a or not b:
-        return 0.0
-    overlap = len(a & b) / len(b)                      # how much of the Avixo name is in the listing
-    ratio = difflib.SequenceMatcher(None, clean(listing)[:80], clean(product)).ratio()
-    return round(0.75 * overlap + 0.25 * ratio, 3)
+from backend.link_match import pick
 
 
 def read_price_listings(path):
@@ -99,16 +72,15 @@ def main():
     for item, vs in listings.items():
         multi = len(vs) > 1
         for v in (vs if multi else vs[:1]):
-            label = vs[0]['name'] + (' ' + v['var_name'] if multi and v['var_name'] else '')
-            ranked = sorted(((score(label, p['name']), p) for p in products), key=lambda z: z[0], reverse=True)
-            best, second = ranked[0], ranked[1]
+            var_name = v['var_name'] if multi else ''
+            best, ranked = pick(vs[0]['name'], var_name, products)
             sold = units_var.get((item, v['var']), 0) if multi else units_item.get(item, 0)
-            confident = best[0] >= 0.8 and best[0] - second[0] >= 0.15
+            top = ranked[0][1]
             lines.append(dict(market=a.market, item=item, var=v['var'] if multi else '0', name=vs[0]['name'],
-                              var_name=v['var_name'] if multi else '', units=sold,
-                              sug_id=pid(best[1]), sug_name=best[1]['name'], score=best[0],
-                              alt=f"{pid(second[1])}: {second[1]['name']}", use=pid(best[1]) if confident else '',
-                              confident=confident))
+                              var_name=var_name, units=sold,
+                              sug_id=pid(best or top), sug_name=(best or top)['name'], score=round(ranked[0][0], 3),
+                              alt=f"{pid(ranked[1][1])}: {ranked[1][1]['name']}", use=pid(best) if best else '',
+                              confident=bool(best)))
     lines.sort(key=lambda x: (-x['units'], x['name'], x['var']))
 
     wb = openpyxl.Workbook()
@@ -148,8 +120,8 @@ def main():
         ['Shopee listing links — how to use'],
         [''],
         ['1. Go to sheet "Links". Column K "Avixo ID to use" decides the link. Column L shows the product name for the ID you typed — check it.'],
-        ['2. GREEN = strong name match, already filled in. Still glance at column L.'],
-        ['3. YELLOW = not sure. Look at the suggestion (G/H) and second choice (J); type the right Avixo ID in K, or leave it empty.'],
+        ['2. GREEN = matched automatically to the Avixo Inventory Report (same brand, size and variant). Already filled in.'],
+        ['3. YELLOW = no clear Avixo product, left empty, so the website leaves it out. To link one anyway, type its Avixo ID in K.'],
         ['4. Free gift / bundle with no Avixo product: type FREE in K. Leave K empty to skip a listing.'],
         ['5. Listings with sizes/flavours have one row per Variation ID — each can go to a different Avixo product.'],
         ['6. Save, then upload this file on the website: Upload Data > Shopee listing links.'],

@@ -22,8 +22,8 @@ const payload={
  stock_alerts:[{name:'Test stock',quantity:0}],low_stock_count:1,
  inventory_charts:{snapshot_date:'2026-10-01',categories:[{name:'Baby Care',healthy:15,low_stock:3,out_of_stock:2,unknown:0},{name:'Accessories',healthy:4,low_stock:1,out_of_stock:0,unknown:0}],value_bands:[{label:'RM 0–500',count:100,total_value_rm:15000},{label:'RM 501–2k',count:70,total_value_rm:83000},{label:'RM 2k–5k',count:30,total_value_rm:99000},{label:'Over RM 5k',count:16,total_value_rm:134917.82}],value_missing_or_negative_products:0},
  shopee_details:[{month:'2026-09-01',marketplace:'MY',item_id:'12',variation_id:'0',name:'Test item',avixo_id:'010',mapped:true,units:30,revenue:1000.25,currency:'MYR'},
-  ...Array.from({length:24},(_,i)=>({month:'2026-09-01',marketplace:'MY',item_id:String(100+i),variation_id:'0',name:i===23?'Lowest seller':'Filler '+i,avixo_id:null,mapped:false,units:1,revenue:500-i*20,currency:'MYR'}))],
- shopee_listings:{MY:[{key:'p:010',name:'Test item',avixo_id:'010',mapped:true},{key:'p:999',name:'Never sold A',avixo_id:'999',mapped:true},{key:'u:777',name:'Unmapped listing 777',avixo_id:null,mapped:false}],SG:[]},
+  ...Array.from({length:24},(_,i)=>({month:'2026-09-01',marketplace:'MY',item_id:String(100+i),variation_id:'0',name:i===23?'Lowest seller':'Filler '+i,avixo_id:String(500+i),mapped:true,units:1,revenue:500-i*20,currency:'MYR'}))],
+ shopee_listings:{MY:[{key:'p:010',name:'Test item',avixo_id:'010',mapped:true},{key:'p:999',name:'Never sold A',avixo_id:'999',mapped:true},{key:'u:777',name:'Free gift 777',avixo_id:null,mapped:false,flag:'free_item'}],SG:[]},
  listing_prices:{MY:{date:'2026-10-10',rows:574,items:490,min:1.50,max:217.40,currency:'MYR'}},recent_imports:[]
 };
 const ctx={
@@ -67,7 +67,7 @@ setTimeout(()=>{
   clickSort('revenue'); assert.strictEqual(firstName(),'Test item');
   element('topToggle').onclick();
   assert.strictEqual(rows(),2);
-  assert(element('topProducts').innerHTML.includes('Never sold A') && element('topProducts').innerHTML.includes('Unmapped listing 777'));
+  assert(element('topProducts').innerHTML.includes('Never sold A') && element('topProducts').innerHTML.includes('Free gift 777'));
   assert(!element('topProducts').innerHTML.includes('Test item'));
   element('topToggle').onclick();
   assert.strictEqual(rows(),20);

@@ -29,11 +29,10 @@ prices = [{'marketplace': 'MY', 'snapshot_date': '2026-10-10', 'shopee_item_id':
           {'marketplace': 'MY', 'snapshot_date': '2026-09-01', 'shopee_item_id': 55}]
 names = {1: {'avixo_id': '237', 'name': 'Alpha'}, 2: {'avixo_id': '300', 'name': 'Beta'}}
 cat = shopee_listing_catalogue(links, prices, names)
-assert [x['key'] for x in cat['MY']] == ['p:237', 'p:300', 'u:99'], cat['MY']
+assert [x['key'] for x in cat['MY']] == ['p:237', 'p:300'], cat['MY']   # unlinked, unflagged listing is left out
 assert cat['SG'] == []
 flags = [{'marketplace': 'MY', 'shopee_item_id': '99', 'flag': 'free_item', 'display_name': 'Free gift'}]
 cat2 = shopee_listing_catalogue(links, prices, names, flags)
 free = [x for x in cat2['MY'] if x['key'] == 'u:99'][0]
 assert free['name'] == 'Free gift' and free['flag'] == 'free_item' and free['mapped'] is False, free
-assert 'flag' not in [x for x in cat['MY'] if x['key'] == 'u:99'][0]          # not flagged -> unchanged
 print('PASS: trends + listing catalogue')

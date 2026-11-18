@@ -258,6 +258,7 @@ function renderTopProducts() {
   const grouped = new Map();
   for (const row of state.shopee_details || []) {
     if (row.marketplace !== market || !inRange(first7(row.month))) continue;
+    if (!row.mapped) continue;   // only listings linked to an Avixo product are listed (totals still include all sales)
     const key = row.mapped ? `p:${row.avixo_id}` : `u:${row.item_id}`;
     const group = grouped.get(key) || {key, name:row.name, units:0, revenue:0, mapped:row.mapped, avixo_id:row.avixo_id};
     group.units += n(row.units);
