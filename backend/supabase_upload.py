@@ -4,6 +4,7 @@ Original source rows are never replaced; conflicts require explicit administrati
 """
 import datetime as dt
 import hashlib
+import uuid as uuidlib
 import json
 import os
 import re
@@ -228,14 +229,27 @@ def prepare(path, kind, month, snapshot, db, clinic_price_mode="historical"):
             raise ValueError(f'Inventory date in workbook is {embedded_date}; selected date disagrees.')
         snapshot=snapshot or embedded_date
         if not snapshot: raise ValueError('Enter inventory snapshot date')
+        # First inventory report for a brand-new database: any date in the month is accepted and
+        # products are created from the report, because there is nothing earlier to protect.
+        first_import=not (db.table('inventory_snapshots').select('product_id').limit(1).execute().data or [])
         last=dt.date.fromisoformat(month_end(month))
-        if snapshot not in (last.isoformat(),(last+dt.timedelta(days=1)).isoformat()):
+        if first_import:
+            first_day=dt.date.fromisoformat(month+'-01')
+            if not (first_day.isoformat()<=snapshot<=(last+dt.timedelta(days=1)).isoformat()):
+                raise ValueError('Inventory snapshot date must be inside the selected month.')
+            if snapshot not in (last.isoformat(),(last+dt.timedelta(days=1)).isoformat()):
+                warnings.append('First inventory report: mid-month date accepted. Monthly views still use the month-end report, so upload that too when it is ready.')
+        elif snapshot not in (last.isoformat(),(last+dt.timedelta(days=1)).isoformat()):
             raise ValueError('Inventory snapshot should be month-end or the following day.')
         ids,_=product_lookup(db)
-        s_rows=[];b_rows=[];unknown=[]
+        s_rows=[];b_rows=[];unknown=[];new_products=[]
         for p in products:
             key=ident(p.get('id'))
             if not key:continue
+            if key not in ids and first_import:
+                ids[key]=str(uuidlib.uuid4())
+                new_products.append(dict(id=ids[key],avixo_id=key,name=str(p.get('name') or key).strip(),
+                    category=str(p.get('cat') or 'Uncategorised').strip() or 'Uncategorised',stock_unit=str(p.get('unit') or '') or None))
             if key not in ids:
                 unknown.append(f'{key}: {p.get("name")}')
                 continue
@@ -250,6 +264,9 @@ def prepare(path, kind, month, snapshot, db, clinic_price_mode="historical"):
                    stock_cost_value_rm=d(b.get('value_cost') or 0),stock_retail_value_rm=d(b.get('value_retail') or 0)))
         if unknown: raise ValueError('Unknown Avixo IDs; import/update products first: '+', '.join(unknown[:5]))
         if not s_rows: raise ValueError('No inventory records with known Avixo IDs')
+        if new_products:
+            tables['products']=new_products
+            warnings.append(f'First inventory report: {len(new_products)} products will be created from this file.')
         tables['inventory_snapshots']=s_rows;tables['inventory_batches']=b_rows
         meta.update(snapshot_date=snapshot,stock_units=d(sum(Decimal(x['quantity']) for x in s_rows)),
                     stock_value_rm=d(sum(Decimal(x['stock_value_rm']) for x in s_rows)),expiry_batches=len(b_rows))
@@ -331,6 +348,7 @@ KEYS = {
  'inventory_snapshots': ('product_id','snapshot_date'),
  'inventory_batches': ('product_id','snapshot_date','batch_number'),
  'clinic_movement_monthly': ('report_month','avixo_name_in_report'),
+ 'products': ('avixo_id',),
 }
 COMPARE = {
  'shopee_sales_monthly': ('report_month','marketplace','shopee_item_id','units_sold','sales_amount','currency'),
@@ -339,8 +357,9 @@ COMPARE = {
  'inventory_snapshots': ('product_id','snapshot_date','quantity','latest_cost_rm','clinic_list_price_rm','stock_value_rm','summary_balance'),
  'inventory_batches': ('product_id','snapshot_date','batch_number','expiry_date','quantity','stock_cost_value_rm','stock_retail_value_rm'),
  'clinic_movement_monthly': ('report_month','avixo_name_in_report','units_sold','estimated_revenue_rm','price_snapshot_date'),
+ 'products': ('avixo_id','name'),
 }
-SORT = {'inventory_snapshots':'product_id','inventory_batches':'product_id','listing_price_snapshots':'shopee_item_id','clinic_movement_monthly':'id'}
+SORT = {'products':'avixo_id','inventory_snapshots':'product_id','inventory_batches':'product_id','listing_price_snapshots':'shopee_item_id','clinic_movement_monthly':'id'}
 
 
 def normval(v):
@@ -364,6 +383,7 @@ def status_for(db,tables, allow_resume=False):
             scope={'report_month':key0['report_month'],'marketplace':key0['marketplace']}
         elif table=='listing_price_snapshots':scope={'snapshot_date':key0['snapshot_date'],'marketplace':key0['marketplace']}
         elif table in ('inventory_snapshots','inventory_batches'):scope={'snapshot_date':key0['snapshot_date']}
+        elif table=='products':scope={}
         else:scope={'report_month':key0['report_month']}
         existing=fetch_all(db,table,','.join(set(KEYS[table]+COMPARE[table])),scope,SORT.get(table,'id'))
         old={tuple(ident(x.get(k)) for k in KEYS[table]):x for x in existing}
@@ -372,6 +392,10 @@ def status_for(db,tables, allow_resume=False):
         changed=[k for k in shared if any(normval(new[k].get(c))!=normval(old[k].get(c)) for c in COMPARE[table])]
         summary[table]={'source_rows':len(rows),'existing_rows':len(old),'new':len(newkeys),'identical':len(shared)-len(changed),'changed':len(changed),'missing':len(missing)}
         # In an already populated scope, no additional records from different files are accepted.
+        if table=='products':
+            # Only brand-new products are proposed here; other existing products are not "missing".
+            if old and not allow_resume:conflicts.append(f'products: {len(old)} already exist; upload again for a fresh preview')
+            continue
         if changed or missing or (old and newkeys and not allow_resume):
             conflicts.append(f'{table}: {len(changed)} changed, {len(missing)} missing, {len(newkeys)} new against an existing scope')
     return summary,conflicts
@@ -461,7 +485,7 @@ def accept():
             import_id=imported.data[0]['id']
         inserted=0
         # Supabase jsonb does not keep key order, so insert parents before children explicitly.
-        order=['inventory_snapshots','inventory_batches']
+        order=['products','inventory_snapshots','inventory_batches']
         ordered=sorted(tables.items(),key=lambda kv:(order.index(kv[0]) if kv[0] in order else -1))
         for table,rows in ordered:
             # Earlier pending batches may already have been inserted; only append missing identities.
@@ -472,10 +496,11 @@ def accept():
                 scope={'report_month':first['report_month'],'marketplace':first['marketplace']}
             elif table=='listing_price_snapshots':scope={'snapshot_date':first['snapshot_date'],'marketplace':first['marketplace']}
             elif table in ('inventory_snapshots','inventory_batches'):scope={'snapshot_date':first['snapshot_date']}
+            elif table=='products':scope={}
             else:scope={'report_month':first['report_month']}
             old=fetch_all(db,table,','.join(KEYS[table]),scope,SORT.get(table,'id'))
             old_keys={tuple(ident(v.get(k)) for k in KEYS[table]) for v in old}
-            fresh=[dict(r,**({'import_id':import_id} if table!='shopee_variation_sales_monthly' else {})) for r in rows
+            fresh=[dict(r,**({'import_id':import_id} if table not in ('shopee_variation_sales_monthly','products') else {})) for r in rows
                    if tuple(ident(r.get(k)) for k in KEYS[table]) not in old_keys]
             for start in range(0,len(fresh),100):
                 db.table(table).insert(fresh[start:start+100]).execute()
