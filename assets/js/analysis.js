@@ -147,7 +147,8 @@
     const idle = sum(i => ['nonmoving', 'slow', 'high'].reduce((s, a) => s + (i.alerts[a] ? i.alerts[a].rm : 0), 0));
     const by = (key, filter) => items.filter(filter || (i => i.alerts[key])).sort((a, b) => (b.alerts[key] ? b.alerts[key].rm : 0) - (a.alerts[key] ? a.alerts[key].rm : 0));
     const lists = {
-      reorder: by('lowstock'),
+      // Products whose stock is kept at FirstStep have 0 stock here by design: not a FirstWell reorder.
+      reorder: by('lowstock', i => i.alerts.lowstock && !((i.product.fl || []).includes('Stock kept at FirstStep'))),
       expiry: by('expiry'),
       idle: items.filter(i => i.alerts.nonmoving || i.alerts.slow || i.alerts.high)
         .sort((a, b) => idleRm(b) - idleRm(a)),
