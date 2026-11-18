@@ -6,6 +6,7 @@ import datetime as dt
 import hashlib
 import uuid as uuidlib
 import json
+import openpyxl
 import os
 import re
 import secrets
@@ -401,6 +402,14 @@ def status_for(db,tables, allow_resume=False):
     return summary,conflicts
 
 
+def is_links_sheet(path):
+    try:
+        wb=openpyxl.load_workbook(path,read_only=True)
+        return 'Links' in wb.sheetnames and 'Avixo products' in wb.sheetnames
+    except Exception:
+        return False
+
+
 def fingerprint_for(path,kind):
     # Upload channel has its own import provenance, distinct from old CLI importer prefixes.
     return hashlib.sha256(('firstwell-web-'+kind+':').encode()+path.read_bytes()).hexdigest()
@@ -427,6 +436,8 @@ def preview():
         uploaded.save(path)
         if path.stat().st_size>35*1024*1024:return fail('Maximum file size is 35 MB.',413)
         try:
+            if is_links_sheet(path):
+                return fail('This is the Shopee links sheet. Upload it in the "Shopee listing links" box further down this page, not here.')
             kind=detect_kind(path,file_name,chosen)
             db=client()
             tables,metrics,warnings,snapshot=prepare(path,kind,month,snapshot,db,clinic_price_mode if kind=='movement' else 'historical')
@@ -443,6 +454,8 @@ def preview():
             return jsonify(ok=True,token=token,report_type=kind,month=month,metrics=metrics,warnings=warnings,
                            comparison=counts,conflicts=conflicts,can_accept=not bool(conflicts),
                            already_imported=bool(old and old[0]['status']=='imported'))
+        except SystemExit as exc:      # the shared Excel readers stop with sys.exit() on a wrong file layout
+            return fail('Preview failed: this file does not look like the selected report type. '+str(exc)[:200])
         except Exception as exc:
             current_app.logger.exception('Supabase upload preview failed')
             return fail('Preview failed: '+str(exc))
