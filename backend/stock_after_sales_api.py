@@ -140,7 +140,7 @@ def combined_sha(infos):
 
 
 def saved_shopee_links():
-    """Newest Shopee links (Upload Data > Shopee listing links): {(market, item, variation): Avixo ID}. Empty if unavailable."""
+    """Newest Shopee links (Upload Data > Shopee listing links): {(market, item, variation): (Avixo ID, name)}. Empty if unavailable."""
     try:
         db = client()
         links = []
@@ -155,11 +155,11 @@ def saved_shopee_links():
         ids = {x['product_id'] for x in links}
         prods = []
         for start in range(0, 20000, 1000):
-            part = db.table('products').select('id,avixo_id').range(start, start + 999).execute().data or []
+            part = db.table('products').select('id,avixo_id,name').range(start, start + 999).execute().data or []
             prods += part
             if len(part) < 1000:
                 break
-        avixo = {p['id']: str(p['avixo_id']) for p in prods if p['id'] in ids}
+        avixo = {p['id']: (str(p['avixo_id']), p['name']) for p in prods if p['id'] in ids}
         newest = {}
         for x in links:
             newest[x['marketplace']] = max(newest.get(x['marketplace'], ''), str(x['observed_on']))

@@ -82,6 +82,15 @@ class Calc(unittest.TestCase):
                       saved_links={('MY', '99', '0'): '7', ('MY', '98', '0'): 'FS-5'})
         self.assertEqual((r['rows'][0]['id'], r['rows'][0]['total'], r['rows'][0]['check']), (7, 2, ''))
 
+    def test_saved_link_from_the_other_avixo_goes_by_name_not_id(self):
+        # PJ Avixo: Ceravis is 1065. FirstStep Avixo: 1065 is something else and Ceravis is 501.
+        inv = ('inventory', 'inv.xlsx', avixo([(1065, 'SMARTBuddy Iron Up 120G', 10, ''), (501, 'Ceravis Gentle Skin Cleanser 300ml', 10, ''),
+                                               (938, 'Ivygard Ivy Leaf Drops 6s', 5, '')]))
+        r = calculate([inv, ('shopee_my', 'a.xlsx', shopee('MYR', [('11', 'Listing A', '-', '-', 1), ('22', 'Listing B', '-', '-', 2)]))],
+                      saved_links={('MY', '11', '0'): ('1065', 'Ceravis Gentle Skin Cleanser 300ml'),
+                                   ('MY', '22', '0'): ('FS-938', 'Ivygard Ivy Leaf Drops 6s')})
+        self.assertEqual({x['id']: x['total'] for x in r['rows']}, {501: 1, 938: 2})
+
     def test_needs_inventory_and_known_files(self):
         with self.assertRaises(FileError):
             calculate([('shopee_sg', 'sg.xlsx', shopee('SGD', [('1', 'x', '-', '-', 1)]))])

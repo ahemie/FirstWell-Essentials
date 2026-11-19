@@ -298,7 +298,9 @@ def fefo(batches, qty, today=None):
 
 
 def calculate(files, today=None, saved_links=None):
-    """saved_links: {(market, item id, variation id): Avixo ID} from the Shopee links sheet saved on the website."""
+    """saved_links: {(market, item id, variation id): (Avixo ID, product name)} from the Shopee links saved on the website.
+    The same product has different IDs in the two Avixo accounts (FirstStep and FirstStep PJ), so a saved link is used only
+    when the report's product with that ID has the same name; otherwise the product is found by its exact name."""
     """files: [(slot, filename, sheets)]. Returns the result dict."""
     avixos, sales_lines, notes, used = [], [], [], []
     placed_diff = []
@@ -354,7 +356,20 @@ def calculate(files, today=None, saved_links=None):
             if len(f) >= 3 and f[0].upper() in REMARK_MARKET:
                 links[(REMARK_MARKET[f[0].upper()], f[1], f[2])] = p['id']
     by_text = {str(p['id']).strip(): p['id'] for p in prods}
-    saved = {k: by_text[str(v)] for k, v in (saved_links or {}).items() if str(v) in by_text}   # FS- (FirstStep stock) stays out
+    norm = lambda t: re.sub(r'[^a-z0-9]', '', str(t or '').lower())
+    by_name = {}
+    for p in prods:
+        by_name.setdefault(norm(p['name']), p['id'])
+    saved = {}
+    for k, v in (saved_links or {}).items():
+        aid, pname = (v if isinstance(v, (tuple, list)) else (v, None))
+        aid = str(aid)
+        aid = aid[3:] if aid.upper().startswith('FS-') else aid
+        pid = by_text.get(aid)
+        if pid is not None and (pname is None or norm(by_id[pid]['name']) == norm(pname)):
+            saved[k] = pid
+        elif pname and norm(pname) in by_name:
+            saved[k] = by_name[norm(pname)]
     ptok = [(p, tokens(p['name'])) for p in prods]
     sold = defaultdict(lambda: defaultdict(float)); checks = defaultdict(list); unmatched = []
     for ln in sales_lines:
