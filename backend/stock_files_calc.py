@@ -342,6 +342,9 @@ def calculate(files, today=None, saved_links=None):
         notes.append(f'{len(avixos)} inventory reports were uploaded. The newest one ({avixos[-1]["file"]}, {avixos[-1]["when"]}) is used.')
     inv = avixos[-1]
     prods = inv['products']
+    if len(prods) < 30:
+        notes.append(f'The Avixo Inventory Report has only {len(prods)} products, so it was probably exported with a search or '
+                     'filter. Export the full Inventory Report (no search) so every sold product can be found.')
     by_id = {p['id']: p for p in prods}
     links = {}
     for p in prods:
