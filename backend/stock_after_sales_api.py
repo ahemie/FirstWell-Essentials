@@ -139,6 +139,37 @@ def combined_sha(infos):
     return hashlib.sha256('|'.join(sorted(i['slot'] + ':' + i['sha256'] for i in infos)).encode()).hexdigest()
 
 
+def saved_shopee_links():
+    """Newest Shopee links (Upload Data > Shopee listing links): {(market, item, variation): Avixo ID}. Empty if unavailable."""
+    try:
+        db = client()
+        links = []
+        for start in range(0, 20000, 1000):
+            part = db.table('product_channel_links').select('marketplace,shopee_item_id,shopee_variation_id,product_id,observed_on') \
+                .range(start, start + 999).execute().data or []
+            links += part
+            if len(part) < 1000:
+                break
+        if not links:
+            return {}
+        ids = {x['product_id'] for x in links}
+        prods = []
+        for start in range(0, 20000, 1000):
+            part = db.table('products').select('id,avixo_id').range(start, start + 999).execute().data or []
+            prods += part
+            if len(part) < 1000:
+                break
+        avixo = {p['id']: str(p['avixo_id']) for p in prods if p['id'] in ids}
+        newest = {}
+        for x in links:
+            newest[x['marketplace']] = max(newest.get(x['marketplace'], ''), str(x['observed_on']))
+        return {(x['marketplace'], str(x['shopee_item_id']), str(x['shopee_variation_id'] or '0')): avixo[x['product_id']]
+                for x in links if str(x['observed_on']) == newest[x['marketplace']] and x['product_id'] in avixo}
+    except Exception:
+        LOG.exception('Could not load saved Shopee links')
+        return {}
+
+
 def sales_infos(infos):
     return [dict(sha256=i['sha256'], name=i['name'], kind=i['slot']) for i in infos if i['slot'] != 'inventory']
 
@@ -149,7 +180,7 @@ def from_files():
     from backend import stock_files_calc as sc
     try:
         parsed, infos = read_uploads(sc)
-        result = sc.calculate(parsed)
+        result = sc.calculate(parsed, saved_links=saved_shopee_links())
         sales = sales_infos(infos)
         saved = []
         if sales:
@@ -178,7 +209,7 @@ def save_history():
             dt.date.fromisoformat(date_iso)
         except ValueError:
             raise sc.FileError('Choose the sales date.')
-        result = sc.calculate(parsed)
+        result = sc.calculate(parsed, saved_links=saved_shopee_links())
         lines = [dict(avixo_id=str(r['id']), name=r['name'], channel=sc.LABEL[c], qty=q, avixo_before=r['before'], avixo_after=r['after'],
                       remark=sc.make_remark(r['sold'], date_iso, result['slot_dates'] if date_iso == result['sales_date'] else None))
                  for r in result['rows'] for c, q in r['sold'].items() if q > 0]

@@ -129,6 +129,18 @@ def parse_avixo(sheets):
     return dict(products=prods, batches=batches, when=when)
 
 
+def shopee_slot(sheets, name):
+    """Which Shopee box a parentskudetail file belongs to, from the currency in its column names."""
+    rows = sheets.get('Top Performing Products') or [[]]
+    cur = next((m.group(1) for x in rows[0] for m in [re.search(r'\((MYR|SGD|PHP)\)', txt(x))] if m), None)
+    if cur == 'PHP':
+        raise FileError(f'{name}: this is a Shopee PH file. FirstWell does not sell on Shopee PH, so it is not used here.')
+    found = next((s for s, c in SLOT_CURRENCY.items() if c == cur), None)
+    if found is None:
+        raise FileError(f'{name}: cannot tell the Shopee market (expected MYR or SGD in the column names).')
+    return found
+
+
 def parse_shopee(sheets, name, slot):
     rows = sheets['Top Performing Products']
     if not rows:
@@ -284,7 +296,8 @@ def fefo(batches, qty, today=None):
     return '; '.join(out)
 
 
-def calculate(files, today=None):
+def calculate(files, today=None, saved_links=None):
+    """saved_links: {(market, item id, variation id): Avixo ID} from the Shopee links sheet saved on the website."""
     """files: [(slot, filename, sheets)]. Returns the result dict."""
     avixos, sales_lines, notes, used = [], [], [], []
     placed_diff = []
@@ -295,6 +308,13 @@ def calculate(files, today=None):
             raise FileError(f'{name}: not recognised. Upload the original Avixo Inventory Report and Shopee / TikTok sales files.')
         if kind == 'lazada':
             raise FileError(f'{name}: this is a Lazada file. FirstWell does not sell on Lazada, so it is not used here.')
+        if kind == 'shopee' and SLOT_KIND.get(slot) == 'shopee':
+            # The shop is decided by the file's currency, not by the box or the file name (staff mix up MY/SG names).
+            real = shopee_slot(sheets, name)
+            if real != slot:
+                notes.append(f'{name} was in the {LABEL[slot]} box but it is a {LABEL[real]} file ({SLOT_CURRENCY[real]}), '
+                             f'so it is counted as {LABEL[real]}.')
+                slot = real
         if slot != 'inventory':
             dates[slot] = file_dates(slot, name, sheets)
         if kind != SLOT_KIND[slot]:
@@ -329,12 +349,17 @@ def calculate(files, today=None):
             f = [x.strip() for x in part.strip().split('|')]
             if len(f) >= 3 and f[0].upper() in REMARK_MARKET:
                 links[(REMARK_MARKET[f[0].upper()], f[1], f[2])] = p['id']
+    by_text = {str(p['id']).strip(): p['id'] for p in prods}
+    saved = {k: by_text[str(v)] for k, v in (saved_links or {}).items() if str(v) in by_text}   # FS- (FirstStep stock) stays out
     ptok = [(p, tokens(p['name'])) for p in prods]
     sold = defaultdict(lambda: defaultdict(float)); checks = defaultdict(list); unmatched = []
     for ln in sales_lines:
         item, var = ln['key']
         pid = links.get((ln['market'], item, var)) or links.get((ln['market'], item, '0'))
         how = 'remark'
+        if pid is None:
+            pid = saved.get((ln['market'], item, var)) or saved.get((ln['market'], item, '0'))
+            how = 'link'
         if pid is None:
             p, sug = name_match(ptok, ln['name'], ln['varname'])
             pid, how = (p['id'], 'name') if p else (None, 'none')

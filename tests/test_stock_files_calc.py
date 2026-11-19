@@ -67,10 +67,20 @@ class Calc(unittest.TestCase):
         with self.assertRaisesRegex(FileError, 'Lazada'):
             calculate([inv, ('shopee_my', 'lazada.xlsx', laz)])
 
-    def test_wrong_box_is_refused(self):
-        inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha', 10, '')]))
-        with self.assertRaises(FileError):
-            calculate([inv, ('shopee_my', 'x.xlsx', shopee('SGD', [('1', 'x', '-', '-', 1)]))])
+    def test_shopee_file_in_the_wrong_box_goes_by_currency(self):
+        inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha', 10, 'SG|1|0; MY|2|0')]))
+        r = calculate([inv, ('shopee_my', 'x_MY.xlsx', shopee('SGD', [('1', 'x', '-', '-', 1)])),
+                       ('shopee_sg', 'x_SG.xlsx', shopee('MYR', [('2', 'x', '-', '-', 3)]))])
+        self.assertEqual(r['rows'][0]['sold'], {'shopee_my': 3, 'shopee_sg': 1, 'tiktok': 0})
+        self.assertTrue(any('counted as Shopee SG' in n for n in r['notes']))
+        with self.assertRaises(FileError):     # a Shopee file in the TikTok box is still refused
+            calculate([inv, ('tiktok', 'x.xlsx', shopee('MYR', [('2', 'x', '-', '-', 1)]))])
+
+    def test_saved_shopee_links_match_after_remarks(self):
+        inv = ('inventory', 'inv.xlsx', avixo([(7, 'Totally different name', 10, '')]))
+        r = calculate([inv, ('shopee_my', 'a.xlsx', shopee('MYR', [('99', 'Listing title', '-', '-', 2)]))],
+                      saved_links={('MY', '99', '0'): '7', ('MY', '98', '0'): 'FS-5'})
+        self.assertEqual((r['rows'][0]['id'], r['rows'][0]['total'], r['rows'][0]['check']), (7, 2, ''))
 
     def test_needs_inventory_and_known_files(self):
         with self.assertRaises(FileError):
