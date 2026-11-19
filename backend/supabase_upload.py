@@ -405,7 +405,9 @@ def status_for(db,tables, allow_resume=False):
 def is_links_sheet(path):
     try:
         wb=openpyxl.load_workbook(path,read_only=True)
-        return 'Links' in wb.sheetnames and 'Avixo products' in wb.sheetnames
+        found='Links' in wb.sheetnames and 'Avixo products' in wb.sheetnames
+        wb.close()
+        return found
     except Exception:
         return False
 

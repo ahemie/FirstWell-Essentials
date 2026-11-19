@@ -72,6 +72,7 @@ def read_grid(path, name):
             except Exception:
                 pass
             out[ws.title] = [list(r) for r in ws.iter_rows(values_only=True)]
+        wb.close()   # Windows: a read-only workbook keeps the file locked until it is closed
         return out
     raise FileError(f'{name}: only .xlsx and .xls files are supported.')
 

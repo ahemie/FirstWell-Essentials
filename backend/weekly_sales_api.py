@@ -160,7 +160,7 @@ def read_request():
     check_period(start, end)
     name = secure_filename(uploaded.filename)[:180]
     chosen = request.form.get('kind', 'auto')
-    with tempfile.TemporaryDirectory(prefix='firstwell_weekly_') as folder:
+    with tempfile.TemporaryDirectory(prefix='firstwell_weekly_', ignore_cleanup_errors=True) as folder:
         path = Path(folder) / name
         uploaded.save(path)
         if path.stat().st_size > 35 * 1024 * 1024:

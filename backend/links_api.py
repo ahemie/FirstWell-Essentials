@@ -78,6 +78,7 @@ def read_links_workbook(path, market):
     for x in rows:
         if x['avixo'].upper().startswith('FS-'):
             x['avixo'] = x['avixo'].upper()
+    wb.close()
     return rows, problems, extra
 
 

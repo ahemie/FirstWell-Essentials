@@ -115,7 +115,7 @@ def read_uploads(sc):
     """Reads the uploaded files, one per box (inventory, shopee_my, shopee_sg, tiktok).
     Returns (parsed, file_infos); file_infos carry each file's sha256."""
     parsed, infos = [], []
-    with tempfile.TemporaryDirectory(prefix='firstwell_stock_') as folder:
+    with tempfile.TemporaryDirectory(prefix='firstwell_stock_', ignore_cleanup_errors=True) as folder:
         for slot, label in sc.SLOTS:
             f = request.files.get(slot)
             if not f or not f.filename:
@@ -184,15 +184,21 @@ def from_files():
         sales = sales_infos(infos)
         saved = []
         if sales:
-            hit = client().table('inv_sales_applied_files').select('sha256,file_name,applied_at').in_('sha256', [i['sha256'] for i in sales]).execute().data or []
-            saved = [dict(file=h['file_name'], at=h['applied_at']) for h in hit]
+            try:   # only to warn about files saved before; the preview still works if Supabase is unreachable
+                hit = client().table('inv_sales_applied_files').select('sha256,file_name,applied_at').in_('sha256', [i['sha256'] for i in sales]).execute().data or []
+                saved = [dict(file=h['file_name'], at=h['applied_at']) for h in hit]
+            except Exception as exc:
+                LOG.exception('History check failed')
+                result.setdefault('notes', []).append(f'Could not check the saved history in Supabase ({type(exc).__name__}: {str(exc)[:160]}). '
+                                                      'Check SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in .env.')
         result.update(sha256=combined_sha(infos), already_saved=saved, can_save=bool(result['rows']) and not saved)
         return jsonify(ok=True, **result)
     except sc.FileError as exc:
         return jsonify(error=str(exc)), 400
-    except Exception:
+    except Exception as exc:
         LOG.exception('Stock from files failed')
-        return jsonify(error='Could not read these files. Upload the original exports without editing them.'), 400
+        return jsonify(error=f'Could not read these files ({type(exc).__name__}: {str(exc)[:200]}). '
+                             'Upload the original exports without editing them.'), 400
 
 
 @bp.post('/save')
