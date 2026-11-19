@@ -217,7 +217,7 @@
       <li><b>Suggested order</b> = enough to reach ${R.TARGET_COVER_MONTHS} months of this month's sales. Adjust for supplier minimums, seasonality and lead time.</li>
       <li><b>Expiry at risk</b> = batch units this month's sales rate will not clear before the batch date, plus units already expired.</li>
       <li><b>Idle stock</b> = non-moving, slow (under ${R.SLOW_UNITS} units) and excess (above ${R.HIGH_MONTHS} months) stock at cost.</li>
-      <li>Only one reporting month is loaded at a time. Trends over time are on the Supabase BI page.</li></ul></details>`;
+      <li>Only one reporting month is loaded at a time. Trends over time are on the Live Sales page.</li></ul></details>`;
   }
 
 

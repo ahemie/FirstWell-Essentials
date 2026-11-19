@@ -7,11 +7,11 @@
   'use strict';
   var SECTIONS = [
     { id: 'dashboard', label: 'Dashboard', pages: [
-      { page: 'overview',  href: '/overview.html',  label: 'Action Centre' },
       { page: 'inventory', href: '/index.html',     label: 'Stock Report' },
       { page: 'analytics', href: '/analytics.html', label: 'Business Analytics' },
       { page: 'product',   href: '/product.html',   label: 'Product Details' },
-      { page: 'bi',        href: '/bi.html',        label: 'Supabase BI', badge: 'LIVE' },
+      { page: 'bi',        href: '/bi.html',        label: 'Live Sales', badge: 'LIVE' },
+      { page: 'overview',  href: '/overview.html',  label: 'Action Centre' },
       { page: 'upload',    href: '/upload.html',    label: 'Upload Data' }
     ] },
     { id: 'scraping', label: 'Price Scraping', pages: [

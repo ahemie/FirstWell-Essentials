@@ -58,7 +58,7 @@ The site is split into three sections (switch between them with the bar under th
 
 | # | Section | Pages | What it is for |
 |---|---|---|---|
-| 1 | **Dashboard** | Action Centre, Stock Report (`/index.html`), Business Analytics, Product Details, Supabase BI, Upload Data | Reports, analytics and Excel uploads |
+| 1 | **Dashboard** | Stock Report (`/index.html`), Business Analytics, Product Details, Live Sales, Action Centre, Upload Data | Reports, analytics and Excel uploads |
 | 2 | **Price Scraping** | Price Watch (`/scrap.html`) | Competitor Shopee prices (Apify) |
 | 3 | **Inventory Update** | Scan & Update (`/inventory.html`) | Staff scan a product barcode, then count stock, stock in or stock out |
 

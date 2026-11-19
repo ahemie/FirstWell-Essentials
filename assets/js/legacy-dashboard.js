@@ -1012,7 +1012,7 @@ function renderLiveMonth() {
     <label>Search <input id="live-month-search" type="search" value="${escapeHtml(state.liveSearch||'')}" placeholder="Product name or Avixo ID"></label></div>
     <p class="live-month-note">${shown.length} of ${candidates.length} products shown. ${unknown.length} unmapped Shopee listing groups (${liveQty(unknownUnits)} units) remain in channel totals, but cannot be assigned to a verified Avixo product.</p>
     <div class="live-month-table-wrap"><table class="live-month-table"><thead><tr><th>Product · ID · Category</th><th>Stock (month-end)</th><th>${escapeHtml(salesHeader)}</th><th>Clinic price</th><th>MY revenue (RM)</th><th>SG revenue (S$)</th></tr></thead><tbody>${table||'<tr><td colspan="6">No matching products for this filter.</td></tr>'}</tbody></table></div>
-    <p class="live-month-note"><a href="/bi.html">View full Supabase BI analysis</a> · Source: cleaned monthly Shopee sales and Clinic movements. This is a read-only monthly view, not a reconstructed historical inventory snapshot.</p>
+    <p class="live-month-note"><a href="/bi.html">View full Live Sales analysis</a> · Source: cleaned monthly Shopee sales and Clinic movements. This is a read-only monthly view, not a reconstructed historical inventory snapshot.</p>
   </section>`;
   document.querySelector(`[data-nav="${document.body.dataset.page}"]`)?.classList.add('active');
 }
