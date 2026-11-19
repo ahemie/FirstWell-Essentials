@@ -112,7 +112,7 @@ def stock_after_sales():
 
 
 def read_uploads(sc):
-    """Reads the uploaded files, one per box (inventory, shopee_my, shopee_sg, shopee_ph, tiktok).
+    """Reads the uploaded files, one per box (inventory, shopee_my, shopee_sg, tiktok).
     Returns (parsed, file_infos); file_infos carry each file's sha256."""
     parsed, infos = [], []
     with tempfile.TemporaryDirectory(prefix='firstwell_stock_') as folder:

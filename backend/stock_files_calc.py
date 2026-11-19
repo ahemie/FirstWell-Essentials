@@ -2,12 +2,12 @@
 
 Files recognised by their content:
   Avixo Inventory Report (.xlsx, sheets "Summary" + "Multiple Expiry")  -> opening stock
-  Shopee Business Insights "parentskudetail" (.xlsx, sheet "Top Performing Products") -> units sold (MY / SG / PH from the currency)
+  Shopee Business Insights "parentskudetail" (.xlsx, sheet "Top Performing Products") -> units sold (MY / SG from the currency; FirstWell has no Shopee PH)
   (FirstWell has one Shopee SG shop and no Lazada: a Lazada file is refused.)
   TikTok Shop product list (.xlsx, first cell "Analysis date: ...")                  -> items sold
 
 Matching a sale to an Avixo product, in this order:
-  1. The remark (Comments column) in Avixo:  MY|item|variation ; SG|item|variation ; PH|item|variation ;
+  1. The remark (Comments column) in Avixo:  MY|item|variation ; SG|item|variation ;
      TT|product id|0     (variation id 0 = the whole listing; old SG1| / SG2| remarks count as SG)
   2. Otherwise the product name, but only when it is a clear match. Name matches are marked "check".
   3. Otherwise the sale is listed as "not matched" so it is never lost silently.
@@ -16,14 +16,14 @@ import datetime as dt
 import re
 from collections import defaultdict
 
-CHANNELS = [('shopee_my', 'Shopee MY'), ('shopee_sg', 'Shopee SG'), ('shopee_ph', 'Shopee PH'), ('tiktok', 'TikTok')]
+CHANNELS = [('shopee_my', 'Shopee MY'), ('shopee_sg', 'Shopee SG'), ('tiktok', 'TikTok')]
 LABEL = dict(CHANNELS)
 SLOTS = [('inventory', 'Avixo Inventory')] + CHANNELS
-REMARK_NAME = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'shopee_ph': 'PH', 'tiktok': 'TT'}  # same short names as the file names
-SLOT_KIND = {'inventory': 'avixo', 'shopee_my': 'shopee', 'shopee_sg': 'shopee', 'shopee_ph': 'shopee', 'tiktok': 'tiktok'}
-SLOT_CURRENCY = {'shopee_my': 'MYR', 'shopee_sg': 'SGD', 'shopee_ph': 'PHP'}
-SLOT_MARKET = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'shopee_ph': 'PH', 'tiktok': 'TT'}
-REMARK_MARKET = {'MY': 'MY', 'SG': 'SG', 'SG1': 'SG', 'SG2': 'SG', 'PH': 'PH', 'TT': 'TT'}  # one SG shop: old SG1/SG2 remarks count as SG
+REMARK_NAME = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'tiktok': 'TT'}  # same short names as the file names
+SLOT_KIND = {'inventory': 'avixo', 'shopee_my': 'shopee', 'shopee_sg': 'shopee', 'tiktok': 'tiktok'}
+SLOT_CURRENCY = {'shopee_my': 'MYR', 'shopee_sg': 'SGD'}
+SLOT_MARKET = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'tiktok': 'TT'}
+REMARK_MARKET = {'MY': 'MY', 'SG': 'SG', 'SG1': 'SG', 'SG2': 'SG', 'TT': 'TT'}  # one SG shop: old SG1/SG2 remarks count as SG
 
 
 class FileError(ValueError):
@@ -137,6 +137,8 @@ def parse_shopee(sheets, name, slot):
     cur = next((m.group(1) for x in h for m in [re.search(r'\((MYR|SGD|PHP)\)', x)] if m), None)
     if cur is None:
         raise FileError(f'{name}: cannot tell the Shopee market (expected MYR, SGD or PHP in the column names).')
+    if cur == 'PHP':
+        raise FileError(f'{name}: this is a Shopee PH file. FirstWell does not sell on Shopee PH, so it is not used here.')
     if cur != SLOT_CURRENCY[slot]:
         raise FileError(f'{name}: this file is in {cur}, but it was put in {LABEL[slot]} ({SLOT_CURRENCY[slot]}). Put it in the right box.')
     paid = next((i for i, x in enumerate(h) if x.startswith('Units (') and ('Paid' in x or 'Confirmed' in x)), None)
@@ -352,7 +354,7 @@ def calculate(files, today=None):
     rows.sort(key=lambda r: r['name'].lower())
     used_ch = [c for c, _ in CHANNELS if any(l['channel'] == c for l in sales_lines)]
     for c, label in CHANNELS:
-        if c not in used_ch and c != 'shopee_ph':
+        if c not in used_ch:
             notes.append(f'No {label} sales file was uploaded (or it has no sales), so {label} sales are not deducted.')
     if placed_diff:
         notes.append('Shopee units use Paid / Confirmed orders. Placed orders are different in: ' + ', '.join(placed_diff) + '.')

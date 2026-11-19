@@ -55,6 +55,12 @@ class Calc(unittest.TestCase):
         self.assertEqual(by[2]['sold']['shopee_sg'], 5)
         self.assertEqual([c['label'] for c in r['channels']], ['Shopee SG'])
 
+    def test_shopee_ph_file_is_refused(self):
+        inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha', 10, '')]))
+        with self.assertRaisesRegex(FileError, 'Shopee PH'):
+            calculate([inv, ('shopee_sg', 'a_PH.xlsx', shopee('PHP', [('1', 'x', '-', '-', 1)]))])
+        self.assertEqual([c for c, _ in __import__('backend.stock_files_calc', fromlist=['x']).CHANNELS], ['shopee_my', 'shopee_sg', 'tiktok'])
+
     def test_lazada_file_is_refused(self):
         inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha', 10, '')]))
         laz = {'Sheet1': [['Data Source: Lazada Business Advisor'], ['Product ID']]}
