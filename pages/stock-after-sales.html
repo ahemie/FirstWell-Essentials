@@ -24,12 +24,12 @@
       <details class="sa-help" open>
         <summary>How to use (read first)</summary>
         <ol>
-          <li>Put each file in its own box: <b>Inventory</b> (the Avixo report staff uploaded), <b>Shopee MY</b>, <b>Shopee SG1</b>, <b>Shopee SG2</b>, <b>Shopee PH</b>, <b>Lazada</b>, <b>TikTok</b>. Or pick them all at once and the boxes fill by file name (name them with MY, SG1, SG2, PH, LZD or Lazada, TT or TikTok). Leave a box empty if there is no file.</li>
+          <li>Put each file in its own box: <b>Inventory</b> (the Avixo report staff uploaded), <b>Shopee MY</b>, <b>Shopee SG</b>, <b>Shopee PH</b>, <b>TikTok</b>. Or pick them all at once and the boxes fill by file name (name them with MY, SG, PH, TT or TikTok). Leave a box empty if there is no file.</li>
           <li>Press <b>Preview</b>. The page takes the stock from the Avixo report and subtracts the units sold, product by product. It does <b>not</b> touch the inventory app.</li>
-          <li>Copy the table (or download the CSV) and update Avixo. The <b>Remark</b> column is ready to paste, for example <code>17112026 SG1 x1 SG2 x1</code>: the sales date, then each platform that sold.</li>
+          <li>Copy the table (or download the CSV) and update Avixo. The <b>Remark</b> column is ready to paste, for example <code>17112026 MY x1 SG x1</code>: the sales date, then each platform that sold.</li>
           <li>Press <b>Save to history</b> so you can check this calculation later in the History tab. Saving does not change any stock. The same sales file can be saved only once.</li>
         </ol>
-        <p>To match Lazada and TikTok sales exactly, add the ID to the product <b>Comments</b> (remark) in Avixo, separated by <code>;</code>: <code>LZ|product id|sku id</code>, <code>TT|product id|0</code>. Shopee uses <code>MY|item id|variation id</code>, <code>SG1|…</code>, <code>SG2|…</code>, <code>PH|…</code> (a plain <code>SG|…</code> counts as SG1). Use <code>0</code> when there are no variations. Without a remark in Avixo, a product is matched by name only when the match is clear (marked "check"); anything unclear is listed as not matched.</p>
+        <p>To match TikTok sales exactly, add the ID to the product <b>Comments</b> (remark) in Avixo, separated by <code>;</code>: <code>TT|product id|0</code>. Shopee uses <code>MY|item id|variation id</code>, <code>SG|…</code>, <code>PH|…</code>. Use <code>0</code> when there are no variations. Without a remark in Avixo, a product is matched by name only when the match is clear (marked "check"); anything unclear is listed as not matched.</p>
       </details>
       <div class="sa-slots">
         <label class="sa-pick">Pick several files at once (they are placed in the right boxes by their file names)<input id="multi" type="file" multiple accept=".xlsx,.xls"></label>

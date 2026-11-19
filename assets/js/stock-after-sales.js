@@ -43,7 +43,7 @@ function render() {
   if (!data.counted.length) h += '<div class="sa-note">No weekly sales are uploaded for this period yet, so nothing is subtracted. Add them on the Upload Data page (Weekly sales tab).</div>';
   else h += `<div class="sa-note">Counted ${data.counted.length} upload(s): ` + data.counted.map(c => `${esc(c.channel_label)} ${esc(c.period_start)} to ${esc(c.period_end)}`).join('; ') + '.</div>';
   if (data.skipped.length) h += '<div class="sa-note">Not counted because they only partly fit the dates: ' + data.skipped.map(c => `${esc(c.channel_label)} ${esc(c.period_start)} to ${esc(c.period_end)}`).join('; ') + '.</div>';
-  h += '<div class="sa-note">Lazada and TikTok are not included yet. Only Shopee MY, Shopee SG and Clinic can be uploaded as weekly sales so far.</div>';
+  h += '<div class="sa-note">TikTok is not included yet. Only Shopee MY, Shopee SG and Clinic can be uploaded as weekly sales so far.</div>';
   h += `<input id="q" class="sa-search" type="search" placeholder="Search product" value="${esc(filter)}"> <label><input type="checkbox" id="neg"${onlyNeg ? ' checked' : ''}> Only below zero</label>`;
   const v = visible();
   h += '<div class="sa-wrap"><table><thead><tr><th>Product</th><th class="num">Opening</th>' + ch.map(c => `<th class="num">${esc(c.label)}</th>`).join('') + '<th class="num">Total sold</th><th class="num">Stock after</th></tr></thead><tbody>' +
@@ -78,17 +78,15 @@ document.querySelectorAll('.sa-tabs button').forEach(b => b.onclick = () => {
 });
 
 // ---------- Upload files tab ----------
-const SLOTS = [['inventory', 'Inventory (Avixo report)'], ['shopee_my', 'Shopee MY'], ['shopee_sg1', 'Shopee SG1'], ['shopee_sg2', 'Shopee SG2'], ['shopee_ph', 'Shopee PH'], ['lazada', 'Lazada'], ['tiktok', 'TikTok']];
+const SLOTS = [['inventory', 'Inventory (Avixo report)'], ['shopee_my', 'Shopee MY'], ['shopee_sg', 'Shopee SG'], ['shopee_ph', 'Shopee PH'], ['tiktok', 'TikTok']];
 $('slots').innerHTML = SLOTS.map(([k, l]) => `<label class="sa-slot">${l}<input type="file" id="slot-${k}" accept=".xlsx,.xls"></label>`).join('');
 const slotInput = k => $('slot-' + k);
 function guessSlot(n) {
   n = n.toLowerCase();
   if (/inventory[_ -]?report/.test(n)) return 'inventory';
-  if (/sg[ _-]?1|sg1/.test(n)) return 'shopee_sg1';
-  if (/sg[ _-]?2|sg2/.test(n)) return 'shopee_sg2';
+  if (/(^|[^a-z])sg[ _-]?\d?([^a-z]|$)/.test(n)) return 'shopee_sg';
   if (/(^|[^a-z])ph([^a-z]|$)/.test(n)) return 'shopee_ph';
   if (/(^|[^a-z])my([^a-z]|$)/.test(n)) return 'shopee_my';
-  if (/lazada|lzd|business[ _-]?advisor/.test(n)) return 'lazada';
   if (/tiktok|tik[ _-]?tok|(^|[^a-z])tt([^a-z]|$)|product[_ -]?list/.test(n)) return 'tiktok';
   return null;
 }
@@ -123,7 +121,7 @@ async function calc() {
   } catch (e) { upmsg(e.message); up = null; $('upout').innerHTML = ''; }
   $('calc').disabled = false; $('calc').textContent = 'Preview →';
 }
-const RNAME = {shopee_my: 'MY', shopee_sg1: 'SG1', shopee_sg2: 'SG2', shopee_ph: 'PH', lazada: 'LZD', tiktok: 'TT'};
+const RNAME = {shopee_my: 'MY', shopee_sg: 'SG', shopee_ph: 'PH', tiktok: 'TT'};
 const ddmmyyyy = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? m[3] + m[2] + m[1] : ''; };
 // Each platform keeps the date of its own sales file, unless staff changed the sales date (then one date is used for all).
 function remarkFor(r, iso) {

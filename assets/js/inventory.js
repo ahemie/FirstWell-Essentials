@@ -10,7 +10,7 @@
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var KEY_TOKEN = 'fs-inv-token-v1', KEY_QUEUE = 'fs-inv-queue-v1';
   var REASONS_COUNT = ['Miscount', 'Damaged', 'Expired', 'Not recorded', 'Used / dispensed', 'Other'];
-  var REASONS_OUT = ['Used / dispensed', 'Sold - Shopee MY', 'Sold - Shopee SG1', 'Sold - Shopee SG2', 'Sold - Shopee PH', 'Sold - Lazada', 'Sold - TikTok', 'Sold - Clinic', 'Damaged', 'Expired', 'Sample', 'Other'];
+  var REASONS_OUT = ['Used / dispensed', 'Sold - Shopee MY', 'Sold - Shopee SG', 'Sold - Shopee PH', 'Sold - TikTok', 'Sold - Clinic', 'Damaged', 'Expired', 'Sample', 'Other'];
 
   var cfg = null, tok = null, me = null;
   var products = [], byId = new Map(), byBarcode = new Map();

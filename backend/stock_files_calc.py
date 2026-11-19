@@ -3,12 +3,12 @@
 Files recognised by their content:
   Avixo Inventory Report (.xlsx, sheets "Summary" + "Multiple Expiry")  -> opening stock
   Shopee Business Insights "parentskudetail" (.xlsx, sheet "Top Performing Products") -> units sold (MY / SG / PH from the currency)
-  Lazada Business Advisor product report (.xls / .xlsx, first cell "Data Source: Lazada") -> units sold
+  (FirstWell has one Shopee SG shop and no Lazada: a Lazada file is refused.)
   TikTok Shop product list (.xlsx, first cell "Analysis date: ...")                  -> items sold
 
 Matching a sale to an Avixo product, in this order:
   1. The remark (Comments column) in Avixo:  MY|item|variation ; SG|item|variation ; PH|item|variation ;
-     LZ|product id|sku id ; TT|product id|0     (variation / sku id 0 = the whole listing)
+     TT|product id|0     (variation id 0 = the whole listing; old SG1| / SG2| remarks count as SG)
   2. Otherwise the product name, but only when it is a clear match. Name matches are marked "check".
   3. Otherwise the sale is listed as "not matched" so it is never lost silently.
 """
@@ -16,14 +16,14 @@ import datetime as dt
 import re
 from collections import defaultdict
 
-CHANNELS = [('shopee_my', 'Shopee MY'), ('shopee_sg1', 'Shopee SG1'), ('shopee_sg2', 'Shopee SG2'), ('shopee_ph', 'Shopee PH'), ('lazada', 'Lazada'), ('tiktok', 'TikTok')]
+CHANNELS = [('shopee_my', 'Shopee MY'), ('shopee_sg', 'Shopee SG'), ('shopee_ph', 'Shopee PH'), ('tiktok', 'TikTok')]
 LABEL = dict(CHANNELS)
 SLOTS = [('inventory', 'Avixo Inventory')] + CHANNELS
-REMARK_NAME = {'shopee_my': 'MY', 'shopee_sg1': 'SG1', 'shopee_sg2': 'SG2', 'shopee_ph': 'PH', 'lazada': 'LZD', 'tiktok': 'TT'}  # same short names as the file names
-SLOT_KIND = {'inventory': 'avixo', 'shopee_my': 'shopee', 'shopee_sg1': 'shopee', 'shopee_sg2': 'shopee', 'shopee_ph': 'shopee', 'lazada': 'lazada', 'tiktok': 'tiktok'}
-SLOT_CURRENCY = {'shopee_my': 'MYR', 'shopee_sg1': 'SGD', 'shopee_sg2': 'SGD', 'shopee_ph': 'PHP'}
-SLOT_MARKET = {'shopee_my': 'MY', 'shopee_sg1': 'SG1', 'shopee_sg2': 'SG2', 'shopee_ph': 'PH', 'lazada': 'LZ', 'tiktok': 'TT'}
-REMARK_MARKET = {'MY': 'MY', 'SG': 'SG1', 'SG1': 'SG1', 'SG2': 'SG2', 'PH': 'PH', 'LZ': 'LZ', 'TT': 'TT'}  # a plain SG remark means SG1
+REMARK_NAME = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'shopee_ph': 'PH', 'tiktok': 'TT'}  # same short names as the file names
+SLOT_KIND = {'inventory': 'avixo', 'shopee_my': 'shopee', 'shopee_sg': 'shopee', 'shopee_ph': 'shopee', 'tiktok': 'tiktok'}
+SLOT_CURRENCY = {'shopee_my': 'MYR', 'shopee_sg': 'SGD', 'shopee_ph': 'PHP'}
+SLOT_MARKET = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'shopee_ph': 'PH', 'tiktok': 'TT'}
+REMARK_MARKET = {'MY': 'MY', 'SG': 'SG', 'SG1': 'SG', 'SG2': 'SG', 'PH': 'PH', 'TT': 'TT'}  # one SG shop: old SG1/SG2 remarks count as SG
 
 
 class FileError(ValueError):
@@ -166,31 +166,6 @@ def parse_shopee(sheets, name, slot):
     return lines, placed_total
 
 
-def parse_lazada(sheets, name, slot='lazada'):
-    rows = next(iter(sheets.values()))
-    hi = header_index(rows, 'Product ID', 15)
-    if hi is None:
-        raise FileError(f'{name}: no "Product ID" header row in the Lazada file.')
-    h = [txt(x) for x in rows[hi]]
-    need = ('Product ID', 'Product Name', 'Seller SKU', 'SKU ID', 'Units Sold')
-    if any(n not in h for n in need):
-        raise FileError(f'{name}: expected Lazada columns ' + ', '.join(need) + '.')
-    ix = {n: h.index(n) for n in need}
-    data = [r for r in rows[hi + 1:] if r and txt(r[ix['Product ID']])]
-    with_sku = {txt(r[ix['Product ID']]) for r in data if txt(r[ix['SKU ID']]) not in ('', '-')}
-    lines = []
-    for r in data:
-        pid, sku = txt(r[ix['Product ID']]), txt(r[ix['SKU ID']])
-        has = sku not in ('', '-')
-        if not has and pid in with_sku:
-            continue
-        u = num(r[ix['Units Sold']])
-        if u > 0:
-            lines.append(dict(channel='lazada', market='LZ', file=name, key=(pid, sku if has else '0'),
-                              name=txt(r[ix['Product Name']]), varname='', units=u))
-    return lines
-
-
 def parse_tiktok(sheets, name):
     rows = next(iter(sheets.values()))
     hi = header_index(rows, 'Product Name', 12)
@@ -256,9 +231,9 @@ def qty_text(v):
 
 
 def make_remark(sold, date_iso, slot_dates=None):
-    """Avixo remark for one product: the sales date as DDMMYYYY, then each platform that sold, e.g. '17112026 SG1 x1 SG2 x2'.
+    """Avixo remark for one product: the sales date as DDMMYYYY, then each platform that sold, e.g. '17112026 MY x1 SG x2'.
     With slot_dates ({channel: ISO date}) every platform keeps the date of its own sales file. Platforms with the same date share one
-    date, and different dates are separated by '; ', e.g. '17112026 SG1 x1; 16112026 LZD x2'."""
+    date, and different dates are separated by '; ', e.g. '17112026 SG x1; 16112026 TT x2'."""
     def ddmmyyyy(iso):
         try:
             return dt.date.fromisoformat(iso).strftime('%d%m%Y')
@@ -272,15 +247,13 @@ def make_remark(sold, date_iso, slot_dates=None):
 
 
 def file_dates(slot, name, sheets):
-    """The day(s) a sales file covers, read from the file (Lazada, TikTok) or its name (Shopee): list of dates."""
+    """The day(s) a sales file covers, read from the file (TikTok) or its name (Shopee): list of dates."""
     out = []
     first = next(iter(sheets.values()), [])
     a1 = txt(first[0][0]) if first and first[0] else ''
     try:
         if slot == 'tiktok':
             out = [dt.datetime.strptime(x, '%d/%m/%Y').date() for x in re.findall(r'\d{2}/\d{2}/\d{4}', a1)]
-        elif slot == 'lazada':
-            out = [dt.date.fromisoformat(x) for x in re.findall(r'\d{4}-\d{2}-\d{2}', a1)]
         elif slot.startswith('shopee'):
             m = re.search(r'(\d{8})_(\d{8})', name)
             if m:
@@ -317,7 +290,9 @@ def calculate(files, today=None):
     for slot, name, sheets in files:
         kind = detect(sheets)
         if kind is None:
-            raise FileError(f'{name}: not recognised. Upload the original Avixo Inventory Report and Shopee / Lazada / TikTok sales files.')
+            raise FileError(f'{name}: not recognised. Upload the original Avixo Inventory Report and Shopee / TikTok sales files.')
+        if kind == 'lazada':
+            raise FileError(f'{name}: this is a Lazada file. FirstWell does not sell on Lazada, so it is not used here.')
         if slot != 'inventory':
             dates[slot] = file_dates(slot, name, sheets)
         if kind != SLOT_KIND[slot]:
@@ -330,9 +305,6 @@ def calculate(files, today=None):
             used.append(dict(file=name, kind=LABEL[slot], detail=f'{sum(l["units"] for l in lines):g} units'))
             if abs(placed - sum(l['units'] for l in lines)) > 0.01:
                 placed_diff.append(name)
-        elif kind == 'lazada':
-            lines = parse_lazada(sheets, name); sales_lines += lines
-            used.append(dict(file=name, kind='Lazada', detail=f'{sum(l["units"] for l in lines):g} units'))
         else:
             lines = parse_tiktok(sheets, name); sales_lines += lines
             used.append(dict(file=name, kind='TikTok', detail=f'{sum(l["units"] for l in lines):g} units'))

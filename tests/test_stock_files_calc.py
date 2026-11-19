@@ -19,18 +19,18 @@ def shopee(cur, rows):
 class Calc(unittest.TestCase):
     def test_remark_match_and_fefo(self):
         files = [('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, 'SG|111|0; MY|222|0')])),
-                 ('shopee_sg1', 'sg.xlsx', shopee('SGD', [('111', 'Whatever listing', '-', '-', 3)])),
+                 ('shopee_sg', 'sg.xlsx', shopee('SGD', [('111', 'Whatever listing', '-', '-', 3)])),
                  ('shopee_my', 'my.xlsx', shopee('MYR', [('222', 'Other', '-', '-', 2)]))]
         r = calculate(files, dt.date(2026, 11, 16))
         row = r['rows'][0]
         self.assertEqual((row['before'], row['total'], row['after']), (10, 5, 5))
-        self.assertEqual(row['sold']['shopee_sg1'], 3)
+        self.assertEqual(row['sold']['shopee_sg'], 3)
         self.assertEqual(row['expiry'], '01/01/2028 x5')
         self.assertEqual(row['check'], '')
 
     def test_variation_parent_not_double_counted(self):
         sheets = shopee('SGD', [('9', 'Gel', '-', '-', 3), ('9', 'Gel', '70', '15g', 1), ('9', 'Gel', '71', '60g', 2)])
-        files = [('inventory', 'inv.xlsx', avixo([(1, 'Gel 15g', 10, 'SG|9|70'), (2, 'Gel 60g', 10, 'SG|9|71')])), ('shopee_sg1', 'sg.xlsx', sheets)]
+        files = [('inventory', 'inv.xlsx', avixo([(1, 'Gel 15g', 10, 'SG|9|70'), (2, 'Gel 60g', 10, 'SG|9|71')])), ('shopee_sg', 'sg.xlsx', sheets)]
         r = calculate(files, dt.date(2026, 11, 16))
         self.assertEqual({x['id']: x['total'] for x in r['rows']}, {1: 1, 2: 2})
 
@@ -40,68 +40,70 @@ class Calc(unittest.TestCase):
         self.assertIsNone(name_match(pt, 'Totally different thing', '')[0])
 
     def test_unmatched_sale_is_reported_not_dropped(self):
-        files = [('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, '')])), ('shopee_sg1', 'sg.xlsx', shopee('SGD', [('555', 'Mystery item', '-', '-', 4)]))]
+        files = [('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, '')])), ('shopee_sg', 'sg.xlsx', shopee('SGD', [('555', 'Mystery item', '-', '-', 4)]))]
         r = calculate(files, dt.date(2026, 11, 16))
         self.assertEqual(r['rows'], [])
         self.assertEqual(r['unmatched'][0]['units'], 4)
 
-    def test_sg1_and_sg2_are_separate_shops_with_own_remarks(self):
-        inv = avixo([(1, 'Alpha cream 40ml', 10, 'SG1|111|0'), (2, 'Beta gel 15g', 10, 'SG2|111|0; SG|555|0')])
-        files = [('inventory', 'inv.xlsx', inv), ('shopee_sg1', 'a_SG1.xlsx', shopee('SGD', [('555', 'x', '-', '-', 1), ('111', 'x', '-', '-', 2)])),
-                 ('shopee_sg2', 'a_SG2.xlsx', shopee('SGD', [('111', 'x', '-', '-', 4)]))]
+    def test_one_sg_shop_and_old_sg1_sg2_remarks_count_as_sg(self):
+        inv = avixo([(1, 'Alpha cream 40ml', 10, 'SG1|111|0'), (2, 'Beta gel 15g', 10, 'SG2|222|0; SG|555|0')])
+        files = [('inventory', 'inv.xlsx', inv),
+                 ('shopee_sg', 'a_SG.xlsx', shopee('SGD', [('555', 'x', '-', '-', 1), ('111', 'x', '-', '-', 2), ('222', 'x', '-', '-', 4)]))]
         r = calculate(files, dt.date(2026, 11, 16))
         by = {x['id']: x for x in r['rows']}
-        self.assertEqual(by[1]['sold']['shopee_sg1'], 2)   # 111 in the SG1 shop
-        self.assertEqual(by[2]['sold']['shopee_sg2'], 4)   # 111 in the SG2 shop is a different listing
-        self.assertEqual(by[2]['sold']['shopee_sg1'], 1)   # plain SG| remark counts as SG1
-        self.assertEqual([c['label'] for c in r['channels']], ['Shopee SG1', 'Shopee SG2'])
+        self.assertEqual(by[1]['sold']['shopee_sg'], 2)
+        self.assertEqual(by[2]['sold']['shopee_sg'], 5)
+        self.assertEqual([c['label'] for c in r['channels']], ['Shopee SG'])
+
+    def test_lazada_file_is_refused(self):
+        inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha', 10, '')]))
+        laz = {'Sheet1': [['Data Source: Lazada Business Advisor'], ['Product ID']]}
+        with self.assertRaisesRegex(FileError, 'Lazada'):
+            calculate([inv, ('shopee_my', 'lazada.xlsx', laz)])
 
     def test_wrong_box_is_refused(self):
         inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha', 10, '')]))
         with self.assertRaises(FileError):
             calculate([inv, ('shopee_my', 'x.xlsx', shopee('SGD', [('1', 'x', '-', '-', 1)]))])
-        with self.assertRaises(FileError):
-            calculate([inv, ('lazada', 'x.xlsx', shopee('MYR', [('1', 'x', '-', '-', 1)]))])
 
     def test_needs_inventory_and_known_files(self):
         with self.assertRaises(FileError):
-            calculate([('shopee_sg1', 'sg.xlsx', shopee('SGD', [('1', 'x', '-', '-', 1)]))])
+            calculate([('shopee_sg', 'sg.xlsx', shopee('SGD', [('1', 'x', '-', '-', 1)]))])
         self.assertIsNone(detect({'Sheet1': [['hello']]}))
 
 
 class Remark(unittest.TestCase):
     def test_make_remark(self):
         from backend.stock_files_calc import make_remark
-        self.assertEqual(make_remark({'shopee_sg1': 1, 'shopee_sg2': 1}, '2026-11-17'), '17112026 SG1 x1 SG2 x1')
-        self.assertEqual(make_remark({'shopee_sg2': 3, 'tiktok': 0}, '2026-11-17'), '17112026 SG2 x3')
-        self.assertEqual(make_remark({'lazada': 2}, None), 'LZD x2')
+        self.assertEqual(make_remark({'shopee_my': 1, 'shopee_sg': 1}, '2026-11-17'), '17112026 MY x1 SG x1')
+        self.assertEqual(make_remark({'shopee_sg': 3, 'tiktok': 0}, '2026-11-17'), '17112026 SG x3')
+        self.assertEqual(make_remark({'tiktok': 2}, None), 'TT x2')
 
     def test_row_remark_and_date(self):
-        files = [('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, 'SG|111|0; SG2|333|0')])),
-                 ('shopee_sg1', 'parentskudetail.20261117_20261117_SG1.xlsx', shopee('SGD', [('111', 'x', '-', '-', 1)])),
-                 ('shopee_sg2', 'parentskudetail.20261117_20261117_SG2.xlsx', shopee('SGD', [('333', 'x', '-', '-', 1)]))]
+        files = [('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, 'SG|111|0; MY|333|0')])),
+                 ('shopee_sg', 'parentskudetail.20261117_20261117_SG.xlsx', shopee('SGD', [('111', 'x', '-', '-', 1)])),
+                 ('shopee_my', 'parentskudetail.20261117_20261117_MY.xlsx', shopee('MYR', [('333', 'x', '-', '-', 1)]))]
         r = calculate(files, dt.date(2026, 11, 17))
         self.assertEqual(r['sales_date'], '2026-11-17')
-        self.assertEqual(r['rows'][0]['remark'], '17112026 SG1 x1 SG2 x1')
+        self.assertEqual(r['rows'][0]['remark'], '17112026 MY x1 SG x1')
         self.assertNotIn('app_stock', r['rows'][0])
 
 
 class RemarkDates(unittest.TestCase):
     def test_each_platform_keeps_its_file_date(self):
         from backend.stock_files_calc import make_remark
-        sold = {'shopee_sg1': 1, 'shopee_sg2': 1, 'lazada': 2}
-        sd = {'shopee_sg1': '2026-11-17', 'shopee_sg2': '2026-11-17', 'lazada': '2026-11-16'}
-        self.assertEqual(make_remark(sold, '2026-11-17', sd), '17112026 SG1 x1 SG2 x1; 16112026 LZD x2')
-        self.assertEqual(make_remark(sold, '2026-11-18'), '18112026 SG1 x1 SG2 x1 LZD x2')
-        self.assertEqual(make_remark({'shopee_sg1': 1}, '2026-11-17', sd), '17112026 SG1 x1')
+        sold = {'shopee_my': 1, 'shopee_sg': 1, 'tiktok': 2}
+        sd = {'shopee_my': '2026-11-17', 'shopee_sg': '2026-11-17', 'tiktok': '2026-11-16'}
+        self.assertEqual(make_remark(sold, '2026-11-17', sd), '17112026 MY x1 SG x1; 16112026 TT x2')
+        self.assertEqual(make_remark(sold, '2026-11-18'), '18112026 MY x1 SG x1 TT x2')
 
     def test_calculate_returns_slot_dates(self):
-        files = [('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, 'SG|111|0; SG2|333|0')])),
-                 ('shopee_sg1', 'parentskudetail.20261117_20261117_SG1.xlsx', shopee('SGD', [('111', 'x', '-', '-', 1)])),
-                 ('shopee_sg2', 'parentskudetail.20261116_20261116_SG2.xlsx', shopee('SGD', [('333', 'x', '-', '-', 1)]))]
+        files = [('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, 'SG|111|0; MY|333|0')])),
+                 ('shopee_sg', 'parentskudetail.20261117_20261117_SG.xlsx', shopee('SGD', [('111', 'x', '-', '-', 1)])),
+                 ('shopee_my', 'parentskudetail.20261116_20261116_MY.xlsx', shopee('MYR', [('333', 'x', '-', '-', 1)]))]
         r = calculate(files, dt.date(2026, 11, 17))
-        self.assertEqual(r['slot_dates'], {'shopee_sg1': '2026-11-17', 'shopee_sg2': '2026-11-16'})
-        self.assertEqual(r['rows'][0]['remark'], '17112026 SG1 x1; 16112026 SG2 x1')
+        self.assertEqual(r['slot_dates'], {'shopee_sg': '2026-11-17', 'shopee_my': '2026-11-16'})
+        self.assertEqual(r['rows'][0]['remark'], '16112026 MY x1; 17112026 SG x1')
 
 
 if __name__ == '__main__':

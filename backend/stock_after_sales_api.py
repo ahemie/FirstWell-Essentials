@@ -112,7 +112,7 @@ def stock_after_sales():
 
 
 def read_uploads(sc):
-    """Reads the uploaded files, one per box (inventory, shopee_my, shopee_sg1, shopee_sg2, shopee_ph, lazada, tiktok).
+    """Reads the uploaded files, one per box (inventory, shopee_my, shopee_sg, shopee_ph, tiktok).
     Returns (parsed, file_infos); file_infos carry each file's sha256."""
     parsed, infos = [], []
     with tempfile.TemporaryDirectory(prefix='firstwell_stock_') as folder:
@@ -131,7 +131,7 @@ def read_uploads(sc):
     if not any(i['slot'] == 'inventory' for i in infos):
         raise sc.FileError('Choose the Avixo Inventory Report in the Inventory box.')
     if len(infos) < 2:
-        raise sc.FileError('Choose at least one sales file (Shopee, Lazada or TikTok).')
+        raise sc.FileError('Choose at least one sales file (Shopee or TikTok).')
     return parsed, infos
 
 
