@@ -39,7 +39,7 @@ py -m pip install -r requirements.txt
 py manage.py serve
 ```
 
-5. In your browser, sign in at **http://127.0.0.1:5502/login**. Open these staff-only pages:
+5. In your browser, sign in at **http://127.0.0.1:5503/login**. Open these staff-only pages:
 
 | Page | Address | Data source |
 |---|---|---|
@@ -50,7 +50,7 @@ py manage.py serve
 | **Supabase BI (new)** | **`/bi.html`** | **Supabase reporting views and snapshots** |
 | Upload Data | `/upload.html` | Supabase preview, conflict check, import and status |
 
-Make sure **another Flask app is not already listening on port 5502**. Press Ctrl+C to stop the new server.
+Make sure **another Flask app is not already listening on port 5503**. Press Ctrl+C to stop the new server.
 
 ## The three sections
 

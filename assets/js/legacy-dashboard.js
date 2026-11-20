@@ -1883,7 +1883,7 @@ function detailBar(label, value, max, color, suffix = '') {
     <span class="num r">${formatNumber(value)}${suffix}</span></div>`;
 }
 // Shopee fee assumption set by staff on the Action Centre (percent of sales, saved in this browser).
-const FEE_ASSUMPTION_KEY = 'fs_shopee_fee_assumption';
+const FEE_ASSUMPTION_KEY = 'fw_shopee_fee_assumption';
 function readFeeAssumption() {
   try {
     const f = JSON.parse(localStorage.getItem(FEE_ASSUMPTION_KEY) || '{}');

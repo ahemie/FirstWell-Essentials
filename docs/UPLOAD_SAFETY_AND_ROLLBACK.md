@@ -11,10 +11,10 @@
 2. Copy the existing local `.env` into the new project folder (never upload the secret or put it into HTML). Required variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `ALLOWED_EMAILS`.
 3. In VS Code PowerShell, enter the extracted `FirstStep_Supabase_Protected` folder.
 4. Run `py -m pip install -r requirements.txt`.
-5. If another Flask instance is running on 5502, stop that one first.
+5. If another Flask instance is running on 5503, stop that one first.
 6. Start the upgraded app:
-   `py -c "from app import app; app.run(host='127.0.0.1', port=5502, debug=False)"`
-7. Visit `http://127.0.0.1:5502/login`, sign in, then open `http://127.0.0.1:5502/upload.html`.
+   `py -c "from app import app; app.run(host='127.0.0.1', port=5503, debug=False)"`
+7. Visit `http://127.0.0.1:5503/login`, sign in, then open `http://127.0.0.1:5503/upload.html`.
 8. Test **a previously imported** MY price report (month `2026-10`, snapshot `2026-10-10`, file `mass_update_MY.xlsx`). Preview should show `0 new` and `574 identical` and should NOT duplicate prices.
 9. Test **a previously imported** July MY performance report (month `2026-07`). Existing parent and variation rows should compare without being duplicated. If it says `changed`, do NOT accept; inspect the conflict.
 

@@ -13,7 +13,7 @@
   const short = (s, n = 46) => s.length > n ? s.slice(0, n - 1) + '…' : s;
 
   let state = { months: [], data: null, summary: null, tab: 'reorder', showAll: false, sort: null, fees: { my: 0, sg: 0 } };
-  const FEE_KEY = 'fs_shopee_fee_assumption';
+  const FEE_KEY = 'fw_shopee_fee_assumption';
   function loadFees() { try { const f = JSON.parse(localStorage.getItem(FEE_KEY) || '{}'); state.fees = { my: clampPct(f.my), sg: clampPct(f.sg) }; } catch (e) { /* storage unavailable: keep defaults */ } }
   function saveFees() { try { localStorage.setItem(FEE_KEY, JSON.stringify(state.fees)); } catch (e) { /* ignore */ } }
   function clampPct(v) { v = Number(v); return isFinite(v) ? Math.min(Math.max(v, 0), 100) : 0; }

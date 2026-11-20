@@ -8,7 +8,7 @@
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var KEY_TOKEN = 'fs-inv-token-v1', KEY_QUEUE = 'fs-inv-queue-v1';
+  var KEY_TOKEN = 'fw-inv-token-v1', KEY_QUEUE = 'fw-inv-queue-v1';   // FirstWell's own keys: never share FirstStep's login or offline queue
   var REASONS_COUNT = ['Miscount', 'Damaged', 'Expired', 'Not recorded', 'Used / dispensed', 'Other'];
   var REASONS_OUT = ['Used / dispensed', 'Sold - Shopee MY', 'Sold - Shopee SG', 'Sold - TikTok', 'Sold - Clinic', 'Damaged', 'Expired', 'Sample', 'Other'];
 

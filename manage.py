@@ -26,7 +26,7 @@ def main():
     task = sys.argv[1] if len(sys.argv) > 1 else 'list'
     if task == 'list':
         print('FirstWell Essentials commands:')
-        print('  py manage.py serve               Start Flask on port 5502')
+        print('  py manage.py serve               Start Flask on port 5503')
         print('  py manage.py list                Show available commands')
         for label in SCRIPTS:
             print(f'  py manage.py {label}')
@@ -35,8 +35,8 @@ def main():
         return
     if task == 'serve':
         from app import app
-        print('Open http://127.0.0.1:5502/login')
-        app.run(host='127.0.0.1', port=5502, debug=False)
+        print('Open http://127.0.0.1:5503/login')
+        app.run(host='127.0.0.1', port=5503, debug=False)
         return
     if task not in SCRIPTS:
         sys.exit(f'Unknown task: {task}. Run py manage.py list')
