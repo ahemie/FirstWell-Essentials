@@ -247,18 +247,23 @@ def candidates(prods_tok, text, varname, n=6):
     lt = tokens(text + ' ' + varname)
     need = sizes(tokens(varname))
 
-    def score(strict):
-        out = []
-        for p, pt in prods_tok:
-            if not pt:
-                continue
-            if strict and ((sizes(pt) and not sizes(pt) <= lt) or (need and not need <= pt)):
-                continue
-            sc = len(pt & lt) / len(pt)
-            if sc > 0:
-                out.append((sc, p))
-        return out
-    found = score(True) or score(False)
+    def brand(p):
+        w = re.findall(r'[a-z0-9]+', str(p['name']).lower())
+        return w[0] if w else ''
+
+    out = []
+    for p, pt in prods_tok:
+        if not pt:
+            continue
+        sc = len(pt & lt) / len(pt)
+        if sc <= 0:
+            continue
+        if brand(p) in lt:
+            sc += 0.3            # same brand (first word of the Avixo name) is the strongest hint
+        if not ((sizes(pt) and not sizes(pt) <= lt) or (need and not need <= pt)):
+            sc += 0.15           # sizes agree
+        out.append((sc, p))
+    found = out
     found.sort(key=lambda x: (-x[0], x[1]['name'].lower()))
     return [dict(id=p['id'], name=p['name'], score=round(sc, 2)) for sc, p in found[:n]]
 
@@ -319,9 +324,61 @@ def fefo(batches, qty, today=None):
     return '; '.join(out)
 
 
-def calculate(files, today=None, saved_links=None, aliases=None):
+def match_reference(ref, unmatched, ref_alias, saved_links, paired, today):
+    """Second pass for sales not in the uploaded Avixo report: look them up in FirstStep's Avixo.
+    Order: a pairing saved for FirstStep's Avixo, a saved Shopee link to an FS-<id> product, then a clear name match.
+    Returns (still unmatched, ref result {label, when, rows, products})."""
+    rprods = ref['products']
+    by_id = {p['id']: p for p in rprods}
+    by_sid = {str(p['id']): p for p in rprods}
+    norm = lambda t: re.sub(r'[^a-z0-9]', '', str(t or '').lower())
+    fs_links = {}
+    for k, v in (saved_links or {}).items():
+        aid, pname = (v if isinstance(v, (tuple, list)) else (v, None))
+        aid = str(aid)
+        if aid.upper().startswith('FS-') and aid[3:] in by_sid and (pname is None or norm(by_sid[aid[3:]]['name']) == norm(pname)):
+            fs_links[k] = by_sid[aid[3:]]['id']
+    rtok = [(p, tokens(p['name'])) for p in rprods]
+    sold = defaultdict(lambda: defaultdict(float)); checks = defaultdict(list); left = []
+    for u in unmatched:
+        keys = ((u['market'], u['item'], u['var_key']), (u['market'], u['item'], '0'))
+        pid, how = None, ''
+        for k in keys:
+            if str(ref_alias.get(k)) in by_sid:
+                pid, how = by_sid[str(ref_alias[k])]['id'], 'alias'
+                paired.append(dict(channel=u['channel'], market=u['market'], item=u['item'], variation=k[2], name=u['name'],
+                                   var_name=u['variation'], units=u['units'], avixo_id=pid, avixo_name=by_id[pid]['name'],
+                                   source='firststep'))
+                break
+        if pid is None:
+            pid = fs_links.get(keys[0]) or fs_links.get(keys[1])
+            how = 'link'
+        if pid is None:
+            p, _ = name_match(rtok, u['name'], u['variation'] or '')
+            pid, how = (p['id'], 'name') if p else (None, '')
+        if pid is None:
+            left.append(dict(u, ref_candidates=candidates(rtok, u['name'], u['variation'] or '')))
+            continue
+        sold[pid][u['ch']] += u['units']
+        if how == 'name':
+            checks[pid].append(f"{u['channel']}: matched by product name, please check")
+    rows = []
+    for pid, by in sold.items():
+        p = by_id[pid]; total = sum(by.values())
+        rows.append(dict(id=pid, name=p['name'], unit=p['unit'], before=p['balance'], sold={c: by.get(c, 0.0) for c, _ in CHANNELS},
+                         total=total, after=p['balance'] - total, expiry=fefo(p.get('batches') or [], total, today),
+                         check='; '.join(dict.fromkeys(checks[pid]))))
+    rows.sort(key=lambda r: r['name'].lower())
+    return left, dict(label=ref.get('label') or "FirstStep's Avixo", when=ref.get('when'), rows=rows,
+                      products=sorted(({'id': p['id'], 'name': p['name']} for p in rprods), key=lambda x: x['name'].lower()))
+
+
+def calculate(files, today=None, saved_links=None, aliases=None, ref=None):
     """files: [(slot, filename, sheets)]. Returns the result dict.
-    aliases: pairings staff chose on the page {(market, item, variation): Avixo ID} (inv_listing_aliases).
+    aliases: pairings staff chose on the page {(market, item, variation): Avixo ID or (Avixo ID, source)} (inv_listing_aliases).
+      source 'firststep' = a product in FirstStep's Avixo (the reference below); anything else = the uploaded report.
+    ref: FirstStep's Avixo {label, when, products: [{id, name, unit, balance, batches}]} (backend.firststep_ref). Sales not
+      found in the uploaded report are looked up there and returned separately in result['ref'] — never combined.
     saved_links: {(market, item id, variation id): (Avixo ID, product name)} from the Shopee links saved on the website.
     The same product has different IDs in the two Avixo accounts (FirstStep and FirstStep PJ), so a saved link is used only
     when the report's product with that ID has the same name; otherwise the product is found by its exact name."""
@@ -395,6 +452,11 @@ def calculate(files, today=None, saved_links=None, aliases=None):
             saved[k] = by_name[norm(pname)]
     ptok = [(p, tokens(p['name'])) for p in prods]
     by_sid = {str(p['id']): p for p in prods}
+    own_alias, ref_alias = {}, {}
+    for k, v in (aliases or {}).items():
+        aid, src = (v if isinstance(v, (tuple, list)) else (v, 'firstwell'))
+        (ref_alias if src == 'firststep' else own_alias)[k] = str(aid)
+    aliases = own_alias
     paired = []
     sold = defaultdict(lambda: defaultdict(float)); checks = defaultdict(list); unmatched = []
     for ln in sales_lines:
@@ -406,7 +468,8 @@ def calculate(files, today=None, saved_links=None, aliases=None):
                 if str(aliases.get(k)) in by_sid:
                     pid, how = by_sid[str(aliases[k])]['id'], 'alias'
                     paired.append(dict(channel=LABEL[ln['channel']], market=ln['market'], item=item, variation=k[2], name=ln['name'],
-                                       var_name=ln['varname'], units=ln['units'], avixo_id=pid, avixo_name=by_id[pid]['name']))
+                                       var_name=ln['varname'], units=ln['units'], avixo_id=pid, avixo_name=by_id[pid]['name'],
+                                       source='firstwell'))
                     break
         if pid is None:
             pid = saved.get((ln['market'], item, var)) or saved.get((ln['market'], item, '0'))
@@ -415,7 +478,7 @@ def calculate(files, today=None, saved_links=None, aliases=None):
             p, sug = name_match(ptok, ln['name'], ln['varname'])
             pid, how = (p['id'], 'name') if p else (None, 'none')
         if pid is None:
-            unmatched.append(dict(channel=LABEL[ln['channel']], file=ln['file'], market=ln['market'], item=item, var_key=var, variation=ln['varname'], name=ln['name'],
+            unmatched.append(dict(channel=LABEL[ln['channel']], ch=ln['channel'], file=ln['file'], market=ln['market'], item=item, var_key=var, variation=ln['varname'], name=ln['name'],
                                   units=ln['units'], suggestion=(f"{sug['id']} {sug['name']}" if sug else ''),
                                   candidates=candidates(ptok, ln['name'], ln['varname'])))
             continue
@@ -429,6 +492,9 @@ def calculate(files, today=None, saved_links=None, aliases=None):
                          total=total, after=p['balance'] - total, expiry=fefo(inv['batches'].get(pid, []), total, today),
                          check='; '.join(dict.fromkeys(checks[pid]))))
     rows.sort(key=lambda r: r['name'].lower())
+    ref_out = None
+    if ref and ref.get('products'):
+        unmatched, ref_out = match_reference(ref, unmatched, ref_alias, saved_links, paired, today)
     used_ch = [c for c, _ in CHANNELS if any(l['channel'] == c for l in sales_lines)]
     for c, label in CHANNELS:
         if c not in used_ch:
@@ -440,11 +506,11 @@ def calculate(files, today=None, saved_links=None, aliases=None):
     if len({d for v in dates.values() for d in v[-1:]}) > 1:
         notes.append('The sales files are for different days: ' + ', '.join(f'{LABEL[k]} {v[-1].strftime("%d/%m/%Y")}' for k, v in dates.items() if v) + '. Each platform keeps the date of its own file in the remark. To use one date for all, change the sales date.')
     slot_dates = {k: v[-1].isoformat() for k, v in dates.items() if v}
-    for r in rows:
+    for r in rows + (ref_out['rows'] if ref_out else []):
         r['remark'] = make_remark(r['sold'], sales_date, slot_dates)
     if any(r['after'] < 0 for r in rows):
         notes.append('Some products would go below zero in the Avixo report. Check them before updating Avixo.')
     return dict(inventory=dict(file=inv['file'], when=inv['when'], products=len(prods)), files=used, notes=notes, sales_date=sales_date, slot_dates=slot_dates,
                 channels=[dict(id=c, label=l) for c, l in CHANNELS if c in used_ch], rows=rows,
-                unmatched=sorted(unmatched, key=lambda u: -u['units']), paired=paired,
+                unmatched=sorted(unmatched, key=lambda u: -u['units']), paired=paired, ref=ref_out,
                 products=sorted(({'id': p['id'], 'name': p['name']} for p in prods), key=lambda x: x['name'].lower()))

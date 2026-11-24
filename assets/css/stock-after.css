@@ -57,3 +57,5 @@
 .sa-pair .sa-other input { flex: 1; min-width: 0; }
 .sa-paired { margin: 14px 0; }
 .sa-paired summary { cursor: pointer; font-weight: 600; }
+/* FirstStep's Avixo suggestions: tinted so they are not mistaken for the uploaded Avixo */
+.sa-pair .sa-pairpick.sa-fs { background: #eef4ff; border-color: #b9cdf3; }

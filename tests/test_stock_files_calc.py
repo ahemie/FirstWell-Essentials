@@ -78,6 +78,27 @@ class Calc(unittest.TestCase):
         self.assertEqual(by[2]['sold']['shopee_sg'], 5)
         self.assertEqual([c['label'] for c in r['channels']], ['Shopee SG'])
 
+    def test_sales_not_in_the_uploaded_avixo_go_to_firststep_reference_separately(self):
+        inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha cream 40ml', 10, 'MY|111|0')]))
+        sales = ('shopee_my', 'my.xlsx', shopee('MYR', [('111', 'Alpha', '-', '-', 1), ('222', 'Euderm Cream 45g relief', '-', '-', 2),
+                                                       ('333', 'Mystery listing', '-', '-', 3), ('444', 'Some wording', '-', '-', 4)]))
+        ref = dict(label="FirstStep's Avixo", when='01/11/2026', products=[
+            dict(id=349, name='Euderm Cream 45g', unit='Tube', balance=32, batches=[('01/04/2029', 32)]),
+            dict(id=911, name='Maltofer-Folate Chewable tab 30s', unit='Box', balance=58, batches=[])])
+        r = calculate([inv, sales], dt.date(2026, 11, 18), aliases={('MY', '444', '0'): ('911', 'firststep')}, ref=ref)
+        self.assertEqual([(x['id'], x['total']) for x in r['rows']], [(1, 1)])                       # uploaded Avixo only
+        self.assertEqual({x['id']: x['after'] for x in r['ref']['rows']}, {349: 30, 911: 54})         # FirstStep kept apart
+        self.assertEqual([u['item'] for u in r['unmatched']], ['333'])
+        self.assertTrue(r['unmatched'][0]['ref_candidates'] is not None)
+        self.assertEqual(r['ref']['rows'][0]['remark'], 'MY x2')
+        self.assertTrue(any(p['source'] == 'firststep' for p in r['paired']))
+        # a FirstStep pairing is never applied to the uploaded report, even when the same ID exists there
+        r2 = calculate([inv, sales], dt.date(2026, 11, 18), aliases={('MY', '444', '0'): ('1', 'firststep')}, ref=ref)
+        self.assertEqual([(x['id'], x['total']) for x in r2['rows']], [(1, 1)])
+        # without the reference everything works as before
+        r3 = calculate([inv, sales], dt.date(2026, 11, 18))
+        self.assertIsNone(r3['ref']); self.assertEqual(len(r3['unmatched']), 3)
+
     def test_shopee_ph_file_is_refused(self):
         inv = ('inventory', 'inv.xlsx', avixo([(1, 'Alpha', 10, '')]))
         with self.assertRaisesRegex(FileError, 'Shopee PH'):

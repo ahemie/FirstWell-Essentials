@@ -127,13 +127,16 @@ async function postJson(url, body) {
   if (!r.ok) throw Error(j.error || 'Server error ' + r.status);
 }
 // Save one pairing, then read the same files again so the table includes these sales.
-async function pairListing(i, avixoId) {
-  const u = up.unmatched[i], p = up.products.find(x => String(x.id) === String(avixoId));
+// source: 'firstwell' = the uploaded Avixo report, 'firststep' = FirstStep's Avixo (read from FirstStep's Supabase).
+async function pairListing(i, avixoId, source) {
+  source = source === 'firststep' ? 'firststep' : 'firstwell';
+  const list = source === 'firststep' ? ((up.ref || {}).products || []) : up.products;
+  const u = up.unmatched[i], p = list.find(x => String(x.id) === String(avixoId));
   if (!u || !p) return;
   try {
-    await postJson('/api/stock-after-sales/alias', {market: u.market, item: u.item, variation: u.var_key, avixo_id: String(p.id), avixo_name: p.name, platform_name: u.name});
+    await postJson('/api/stock-after-sales/alias', {market: u.market, item: u.item, variation: u.var_key, avixo_id: String(p.id), avixo_name: p.name, platform_name: u.name, avixo_source: source});
     await calc();
-    upmsg('Paired "' + u.name + '" with ' + p.id + ' · ' + p.name + '. It will be matched automatically next time.');
+    upmsg('Paired "' + u.name + '" with ' + (source === 'firststep' ? "FirstStep's Avixo " : '') + p.id + ' · ' + p.name + '. It will be matched automatically next time.');
   } catch (e) { upmsg(e.message); }
 }
 async function unpair(i) {
@@ -169,48 +172,70 @@ function upTable(rows) {
       ch.map(c => `<td class="num">${fmtq(r.sold[c.id])}</td>`).join('') + `<td class="num">${fmt(r.total)}</td><td class="num ${r.after < 0 ? 'neg-n' : ''}"><b>${fmt(r.after)}</b></td><td><b>${esc(remarkFor(r, iso))}</b></td><td><button type="button" class="sa-copy" data-remark="${esc(remarkFor(r, iso))}" title="Copy this remark">Copy</button></td><td>${esc(r.expiry)}</td><td class="${r.check ? 'chk' : ''}">${esc(r.check)}</td></tr>`).join('') +
     '</tbody></table></div>';
 }
+const refRows = () => ((up && up.ref) || {}).rows || [];
 function renderUp() {
   const j = up, tot = j.rows.reduce((a, r) => a + r.total, 0), un = j.unmatched.reduce((a, r) => a + r.units, 0);
+  const rtot = refRows().reduce((a, r) => a + r.total, 0);
   let h = '<ul class="sa-files">' + j.files.map(f => `<li>${esc(f.kind)}: ${esc(f.file)} <span class="sa-muted">(${esc(f.detail)})</span></li>`).join('') + '</ul>';
-  h += '<div class="sa-cards">' + `<div class="sa-card"><b>${j.rows.length}</b><span>Products sold</span></div><div class="sa-card"><b>${fmt(tot)}</b><span>Units sold</span></div><div class="sa-card"><b>${fmt(un)}</b><span>Units not matched</span></div></div>`;
+  h += '<div class="sa-cards">' + `<div class="sa-card"><b>${j.rows.length}</b><span>Products sold (this Avixo)</span></div><div class="sa-card"><b>${fmt(tot)}</b><span>Units sold (this Avixo)</span></div>` +
+    (j.ref ? `<div class="sa-card"><b>${fmt(rtot)}</b><span>Units from FirstStep's Avixo</span></div>` : '') + `<div class="sa-card"><b>${fmt(un)}</b><span>Units not matched</span></div></div>`;
   j.notes.forEach(n => h += `<div class="sa-note">${esc(n)}</div>`);
   if (j.already_saved.length) h += '<div class="sa-msg">Already saved in the history before: ' + j.already_saved.map(a => esc(a.file)).join(', ') + '.</div>';
   h += '<div class="sa-actions"><label class="sa-muted">Sales date <input type="date" id="salesDate" value="' + esc(j.sales_date || '') + '"></label>' +
     '<button type="button" id="copyRem" class="alt">Copy all remarks</button><button type="button" id="copyTsv" class="alt">Copy table (paste into Excel / Avixo)</button><button type="button" id="dlCsv" class="alt">Download CSV</button></div>';
-  h += '<div id="uptable">' + (j.rows.length ? upTable(j.rows) : '<p class="sa-muted">No sold products were found in these files.</p>') + '</div>';
+  h += '<h2>Deduct from the uploaded Avixo (' + esc(j.inventory.file) + ')</h2>';
+  h += '<div id="uptable">' + (j.rows.length ? upTable(j.rows) : '<p class="sa-muted">No sold products were found in this Avixo report.</p>') + '</div>';
+  if (j.ref && refRows().length) {
+    h += `<h2>Deduct from ${esc(j.ref.label)}</h2><p class="sa-muted">Sold on FirstWell but not in the uploaded Avixo report, found in FirstStep's Avixo instead. Update these in <b>FirstStep's Avixo</b>, not FirstWell's. Stock before = FirstStep's last Avixo report in its dashboard (${esc(j.ref.when)}), so it may be a few weeks old.</p>` +
+      '<div class="sa-actions"><button type="button" id="copyRemRef" class="alt">Copy these remarks</button><button type="button" id="copyTsvRef" class="alt">Copy this table</button><button type="button" id="dlCsvRef" class="alt">Download CSV</button></div>' +
+      '<div id="reftable">' + upTable(refRows()) + '</div>';
+  }
   if (j.unmatched.length) {
-    h += '<h2>Sold but not matched to an Avixo product</h2><p class="sa-muted">Pick the Avixo product for each listing. The pairing is saved, so this listing is matched automatically from now on, and the table above updates.</p>' +
-      '<datalist id="avixoList">' + j.products.map(p => `<option value="${esc(p.id + ' · ' + p.name)}"></option>`).join('') + '</datalist>' +
+    h += '<h2>Sold but not matched to an Avixo product</h2><p class="sa-muted">Pick the Avixo product for each listing' + (j.ref ? " — from the uploaded Avixo, or from <b>FirstStep's Avixo</b> (FS)" : '') + '. The pairing is saved, so this listing is matched automatically from now on, and the tables above update.</p>' +
+      '<datalist id="avixoList">' + j.products.map(p => `<option value="${esc(p.id + ' · ' + p.name)}"></option>`).join('') +
+        (j.ref ? j.ref.products.map(p => `<option value="${esc('FS-' + p.id + ' · ' + p.name + " (FirstStep's Avixo)")}"></option>`).join('') : '') + '</datalist>' +
       '<div class="sa-wrap"><table><thead><tr><th>Platform</th><th>Listing</th><th class="num">Units</th><th>Pair with Avixo product</th></tr></thead><tbody>' +
       j.unmatched.map((u, i) => `<tr><td>${esc(u.channel)}</td><td>${esc(u.name)}${u.variation ? ' <span class="sa-muted">/ ' + esc(u.variation) + '</span>' : ''}<br><span class="sa-muted">ID ${esc(u.item)}</span></td><td class="num">${fmt(u.units)}</td>` +
-        `<td class="sa-pair">${(u.candidates || []).slice(0, 3).map(c => `<button type="button" class="alt sa-pairpick" data-u="${i}" data-id="${esc(c.id)}" title="Pair with ${esc(c.name)}">${esc(c.id + ' · ' + c.name)}</button>`).join('')}` +
+        `<td class="sa-pair">${(u.candidates || []).slice(0, 3).map(c => `<button type="button" class="alt sa-pairpick" data-u="${i}" data-id="${esc(c.id)}" data-src="firstwell" title="Pair with ${esc(c.name)}">${esc(c.id + ' · ' + c.name)}</button>`).join('')}` +
+        `${(u.ref_candidates || []).slice(0, 3).map(c => `<button type="button" class="alt sa-pairpick sa-fs" data-u="${i}" data-id="${esc(c.id)}" data-src="firststep" title="Pair with FirstStep's Avixo: ${esc(c.name)}">FS ${esc(c.id + ' · ' + c.name)}</button>`).join('')}` +
         `<span class="sa-other"><input type="text" list="avixoList" placeholder="Search other Avixo name or ID…" data-search="${i}"><button type="button" class="sa-pairbtn" data-u="${i}">Pair</button></span></td></tr>`).join('') + '</tbody></table></div>';
   }
   if ((j.paired || []).length) {
     h += `<details class="sa-paired"><summary>Matched by a saved pairing (${j.paired.length})</summary><div class="sa-wrap"><table><thead><tr><th>Platform</th><th>Listing</th><th>Avixo product</th><th class="num">Units</th><th></th></tr></thead><tbody>` +
-      j.paired.map((u, i) => `<tr><td>${esc(u.channel)}</td><td>${esc(u.name)}${u.var_name ? ' <span class="sa-muted">/ ' + esc(u.var_name) + '</span>' : ''}<br><span class="sa-muted">ID ${esc(u.item)}</span></td><td>${esc(u.avixo_id + ' · ' + u.avixo_name)}</td><td class="num">${fmt(u.units)}</td><td><button type="button" class="alt sa-unpair" data-p="${i}">Remove pairing</button></td></tr>`).join('') + '</tbody></table></details>';
+      j.paired.map((u, i) => `<tr><td>${esc(u.channel)}</td><td>${esc(u.name)}${u.var_name ? ' <span class="sa-muted">/ ' + esc(u.var_name) + '</span>' : ''}<br><span class="sa-muted">ID ${esc(u.item)}</span></td><td>${u.source === 'firststep' ? "<b>FirstStep's Avixo</b> " : ''}${esc(u.avixo_id + ' · ' + u.avixo_name)}</td><td class="num">${fmt(u.units)}</td><td><button type="button" class="alt sa-unpair" data-p="${i}">Remove pairing</button></td></tr>`).join('') + '</tbody></table></details>';
   }
   if (j.can_save) h += '<div class="sa-confirm"><div class="sa-muted">Saving only keeps a record in the History tab. It does not change any stock, here or in Avixo.</div>' +
     '<div class="sa-actions"><button type="button" id="saveBtn">Save to history</button></div></div>';
   $('upout').innerHTML = h;
-  const bindCopy = () => $('uptable').querySelectorAll('.sa-copy').forEach(b => b.onclick = () => copyText(b.dataset.remark, b));
-  $('salesDate').onchange = () => { $('uptable').innerHTML = up.rows.length ? upTable(up.rows) : ''; bindCopy(); };
+  const bindCopy = () => document.querySelectorAll('#uptable .sa-copy, #reftable .sa-copy').forEach(b => b.onclick = () => copyText(b.dataset.remark, b));
+  $('salesDate').onchange = () => { $('uptable').innerHTML = up.rows.length ? upTable(up.rows) : ''; if ($('reftable')) $('reftable').innerHTML = upTable(refRows()); bindCopy(); };
   bindCopy();
   $('copyRem').onclick = () => copyText(up.rows.map(r => remarkFor(r, salesDate())).join('\n'), $('copyRem'), 'Copied ' + up.rows.length);
   if (j.can_save) $('saveBtn').onclick = saveNow;
-  document.querySelectorAll('.sa-pairpick').forEach(b => b.onclick = () => pairListing(+b.dataset.u, b.dataset.id));
+  document.querySelectorAll('.sa-pairpick').forEach(b => b.onclick = () => pairListing(+b.dataset.u, b.dataset.id, b.dataset.src));
   document.querySelectorAll('.sa-pairbtn').forEach(b => b.onclick = () => {
     const raw = (document.querySelector(`[data-search="${b.dataset.u}"]`).value || '').trim(), id = raw.split(' · ')[0].trim();
+    if (/^FS-/i.test(id) && up.ref) {
+      const hit = up.ref.products.find(p => String(p.id) === id.slice(3));
+      if (!hit) return upmsg("Choose a FirstStep product from the list.");
+      return pairListing(+b.dataset.u, hit.id, 'firststep');
+    }
     const hit = up.products.find(p => String(p.id) === id) || up.products.find(p => p.name.toLowerCase() === raw.toLowerCase());
     if (!hit) return upmsg('Choose a product from the list (type part of the name or the ID).');
-    pairListing(+b.dataset.u, hit.id);
+    pairListing(+b.dataset.u, hit.id, 'firstwell');
   });
+  if ($('copyRemRef')) {
+    $('copyRemRef').onclick = () => copyText(refRows().map(r => remarkFor(r, salesDate())).join('\n'), $('copyRemRef'), 'Copied ' + refRows().length);
+    $('copyTsvRef').onclick = () => copyText(upLines(refRows()).map(l => l.join('\t')).join('\n'), $('copyTsvRef'));
+    $('dlCsvRef').onclick = () => downloadCsv(upLines(refRows()), 'stock-after-sales-firststep-avixo.csv');
+  }
   document.querySelectorAll('.sa-unpair').forEach(b => b.onclick = () => unpair(+b.dataset.p));
   $('copyTsv').onclick = () => copyText(upLines().map(l => l.join('\t')).join('\n'), $('copyTsv'));
-  $('dlCsv').onclick = () => {
-    const blob = new Blob(['\ufeff' + upLines().map(l => l.map(csvCell).join(',')).join('\r\n')], {type: 'text/csv;charset=utf-8'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock-after-sales.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  };
+  $('dlCsv').onclick = () => downloadCsv(upLines(), 'stock-after-sales.csv');
+}
+function downloadCsv(lines, fname) {
+  const blob = new Blob(['\ufeff' + lines.map(l => l.map(csvCell).join(',')).join('\r\n')], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 async function saveNow() {
   if (!salesDate()) return upmsg('Choose the sales date first.');
@@ -224,10 +249,10 @@ async function saveNow() {
     histLoaded = false;
   } catch (e) { upmsg(e.message); $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save to history'; }
 }
-function upLines() {
+function upLines(rows) {
   const ch = up.channels, iso = salesDate();
   return [['ID', 'Product', 'Unit', 'Stock before'].concat(ch.map(c => c.label), ['Total sold', 'Stock after', 'Remark for Avixo', 'Take from expiry', 'Check'])]
-    .concat(up.rows.map(r => [r.id, r.name, r.unit, r.before].concat(ch.map(c => r.sold[c.id] || ''), [r.total, r.after, remarkFor(r, iso), r.expiry, r.check])));
+    .concat((rows || up.rows).map(r => [r.id, r.name, r.unit, r.before].concat(ch.map(c => r.sold[c.id] || ''), [r.total, r.after, remarkFor(r, iso), r.expiry, r.check])));
 }
 $('calc').onclick = calc;
 

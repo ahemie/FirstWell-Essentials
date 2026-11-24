@@ -24,6 +24,7 @@ from flask import Blueprint, jsonify, request
 from werkzeug.utils import secure_filename
 
 from backend.supabase_upload import client
+from backend.firststep_ref import load_reference
 from backend.weekly_sales_api import CHANNEL_LABEL, ReportError, fetch_pages, parse_date
 
 bp = Blueprint('stock_after_sales_api', __name__, url_prefix='/api/stock-after-sales')
@@ -112,10 +113,14 @@ def stock_after_sales():
 
 
 def load_aliases(notes=None):
-    """Saved listing -> Avixo pairings {(market, item, variation): avixo id}. If Supabase is unreachable the calculation still works without them."""
+    """Saved listing -> Avixo pairings {(market, item, variation): (avixo id, source)}; source 'firststep' = FirstStep's Avixo.
+    If Supabase is unreachable the calculation still works without them."""
     try:
-        rows = client().table('inv_listing_aliases').select('market,item,variation,avixo_id').execute().data or []
-        return {(r['market'], r['item'], r['variation']): r['avixo_id'] for r in rows}
+        try:
+            rows = client().table('inv_listing_aliases').select('market,item,variation,avixo_id,avixo_source').execute().data or []
+        except Exception:   # the avixo_source column has not been added yet: every pairing is for FirstWell's own Avixo
+            rows = client().table('inv_listing_aliases').select('market,item,variation,avixo_id').execute().data or []
+        return {(r['market'], r['item'], r['variation']): (r['avixo_id'], r.get('avixo_source') or 'firstwell') for r in rows}
     except Exception as exc:
         LOG.exception('Could not read saved pairings')
         if notes is not None:
@@ -193,7 +198,7 @@ def from_files():
     try:
         parsed, infos = read_uploads(sc)
         pair_notes = []
-        result = sc.calculate(parsed, saved_links=saved_shopee_links(), aliases=load_aliases(pair_notes))
+        result = sc.calculate(parsed, saved_links=saved_shopee_links(), aliases=load_aliases(pair_notes), ref=load_reference(pair_notes))
         result.setdefault('notes', []).extend(pair_notes)
         sales = sales_infos(infos)
         saved = []
@@ -205,7 +210,8 @@ def from_files():
                 LOG.exception('History check failed')
                 result.setdefault('notes', []).append(f'Could not check the saved history in Supabase ({type(exc).__name__}: {str(exc)[:160]}). '
                                                       'Check SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in .env.')
-        result.update(sha256=combined_sha(infos), already_saved=saved, can_save=bool(result['rows']) and not saved)
+        has_rows = bool(result['rows']) or bool((result.get('ref') or {}).get('rows'))
+        result.update(sha256=combined_sha(infos), already_saved=saved, can_save=has_rows and not saved)
         return jsonify(ok=True, **result)
     except sc.FileError as exc:
         return jsonify(error=str(exc)), 400
@@ -229,10 +235,15 @@ def save_history():
             dt.date.fromisoformat(date_iso)
         except ValueError:
             raise sc.FileError('Choose the sales date.')
-        result = sc.calculate(parsed, saved_links=saved_shopee_links(), aliases=load_aliases())
+        result = sc.calculate(parsed, saved_links=saved_shopee_links(), aliases=load_aliases(), ref=load_reference())
+        own_dates = result['slot_dates'] if date_iso == result['sales_date'] else None
         lines = [dict(avixo_id=str(r['id']), name=r['name'], channel=sc.LABEL[c], qty=q, avixo_before=r['before'], avixo_after=r['after'],
-                      remark=sc.make_remark(r['sold'], date_iso, result['slot_dates'] if date_iso == result['sales_date'] else None))
+                      remark=sc.make_remark(r['sold'], date_iso, own_dates))
                  for r in result['rows'] for c, q in r['sold'].items() if q > 0]
+        # FirstStep's Avixo is kept apart: its IDs get an FS- prefix and the name says which Avixo to update.
+        lines += [dict(avixo_id='FS-' + str(r['id']), name=r['name'] + " [FirstStep's Avixo]", channel=sc.LABEL[c], qty=q,
+                       avixo_before=r['before'], avixo_after=r['after'], remark=sc.make_remark(r['sold'], date_iso, own_dates))
+                  for r in ((result.get('ref') or {}).get('rows') or []) for c, q in r['sold'].items() if q > 0]
         sales = sales_infos(infos)
         if not lines or not sales:
             raise sc.FileError('There is nothing to save.')
@@ -272,12 +283,22 @@ def save_alias():
         avixo_id = str(data.get('avixo_id') or '').strip()[:40]
         if not avixo_id:
             raise ValueError('Choose an Avixo product.')
+        source = 'firststep' if data.get('avixo_source') == 'firststep' else 'firstwell'
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
+    row = dict(market=market, item=item, variation=var, avixo_id=avixo_id, avixo_name=str(data.get('avixo_name') or '')[:200],
+               platform_name=str(data.get('platform_name') or '')[:300], created_by=g.staff['email'])
+    if source == 'firststep':
+        row['avixo_source'] = source
     try:
-        client().table('inv_listing_aliases').upsert(dict(
-            market=market, item=item, variation=var, avixo_id=avixo_id, avixo_name=str(data.get('avixo_name') or '')[:200],
-            platform_name=str(data.get('platform_name') or '')[:300], created_by=g.staff['email']), on_conflict='market,item,variation').execute()
+        try:
+            client().table('inv_listing_aliases').upsert(dict(row, avixo_source=source), on_conflict='market,item,variation').execute()
+        except Exception as exc:
+            if 'avixo_source' not in str(exc):
+                raise
+            if source == 'firststep':
+                return jsonify(error="To pair with FirstStep's Avixo, first add the avixo_source column in Supabase (see supabase/migrations/20261124_alias_source.sql)."), 400
+            client().table('inv_listing_aliases').upsert(row, on_conflict='market,item,variation').execute()
     except Exception:
         LOG.exception('Could not save pairing')
         return jsonify(error='Could not save the pairing.'), 500

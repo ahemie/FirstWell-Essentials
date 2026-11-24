@@ -472,6 +472,7 @@ create table public.inv_listing_aliases (
   platform_name text,
   created_by text,
   created_at timestamptz not null default now(),
+  avixo_source text not null default 'firstwell' check (avixo_source in ('firstwell', 'firststep')),
   primary key (market, item, variation)
 );
 
