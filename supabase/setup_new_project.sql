@@ -463,6 +463,18 @@ create table public.weekly_sales_rows (
   currency text
 );
 
+create table public.inv_listing_aliases (
+  market text not null,
+  item text not null,
+  variation text not null default '0',
+  avixo_id text not null,
+  avixo_name text,
+  platform_name text,
+  created_by text,
+  created_at timestamptz not null default now(),
+  primary key (market, item, variation)
+);
+
 -- ---------- PRIMARY KEYS, UNIQUE, CHECKS ----------
 alter table public.channel_fee_rates add constraint channel_fee_rates_pkey PRIMARY KEY (id);
 alter table public.channel_fee_rates add constraint channel_fee_rates_keep_pct_check CHECK (((keep_pct > (0)::numeric) AND (keep_pct <= (100)::numeric)));
@@ -1034,7 +1046,8 @@ end $$;
 revoke all on public.fs_accepted_files, public.fs_app_auth_sessions, public.fs_audit, public.fs_competitor_jobs,
   public.fs_competitor_listings, public.fs_competitor_own_catalog, public.fs_competitor_products, public.fs_link_checks,
   public.fs_months, public.fs_pending_previews, public.fs_scrape_results, public.fs_scrape_runs, public.fs_source_records,
-  public.fs_supabase_upload_previews, public.inv_barcodes, public.inv_movements, public.inv_staff
+  public.fs_supabase_upload_previews, public.inv_barcodes, public.inv_movements, public.inv_staff,
+  public.inv_listing_aliases
   from anon, authenticated;
 
 -- Functions: only signed-in staff may call the app functions; helpers are server-only

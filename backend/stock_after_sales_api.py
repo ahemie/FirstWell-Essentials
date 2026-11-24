@@ -111,6 +111,18 @@ def stock_after_sales():
         return jsonify(error='Could not calculate stock after sales.'), 503
 
 
+def load_aliases(notes=None):
+    """Saved listing -> Avixo pairings {(market, item, variation): avixo id}. If Supabase is unreachable the calculation still works without them."""
+    try:
+        rows = client().table('inv_listing_aliases').select('market,item,variation,avixo_id').execute().data or []
+        return {(r['market'], r['item'], r['variation']): r['avixo_id'] for r in rows}
+    except Exception as exc:
+        LOG.exception('Could not read saved pairings')
+        if notes is not None:
+            notes.append(f'Could not read the saved pairings ({type(exc).__name__}). Matching uses names and Avixo remarks only.')
+        return {}
+
+
 def read_uploads(sc):
     """Reads the uploaded files, one per box (inventory, shopee_my, shopee_sg, tiktok).
     Returns (parsed, file_infos); file_infos carry each file's sha256."""
@@ -180,7 +192,9 @@ def from_files():
     from backend import stock_files_calc as sc
     try:
         parsed, infos = read_uploads(sc)
-        result = sc.calculate(parsed, saved_links=saved_shopee_links())
+        pair_notes = []
+        result = sc.calculate(parsed, saved_links=saved_shopee_links(), aliases=load_aliases(pair_notes))
+        result.setdefault('notes', []).extend(pair_notes)
         sales = sales_infos(infos)
         saved = []
         if sales:
@@ -215,7 +229,7 @@ def save_history():
             dt.date.fromisoformat(date_iso)
         except ValueError:
             raise sc.FileError('Choose the sales date.')
-        result = sc.calculate(parsed, saved_links=saved_shopee_links())
+        result = sc.calculate(parsed, saved_links=saved_shopee_links(), aliases=load_aliases())
         lines = [dict(avixo_id=str(r['id']), name=r['name'], channel=sc.LABEL[c], qty=q, avixo_before=r['before'], avixo_after=r['after'],
                       remark=sc.make_remark(r['sold'], date_iso, result['slot_dates'] if date_iso == result['sales_date'] else None))
                  for r in result['rows'] for c, q in r['sold'].items() if q > 0]
@@ -237,6 +251,52 @@ def save_history():
     except Exception:
         LOG.exception('Stock save failed')
         return jsonify(error='Could not save the history. Nothing was saved.'), 500
+
+
+def alias_keys(data):
+    market = str(data.get('market') or '').strip().upper()[:8]
+    item = str(data.get('item') or '').strip()[:60]
+    var = str(data.get('variation') or '0').strip()[:60] or '0'
+    if not market or not item:
+        raise ValueError('Missing listing ID.')
+    return market, item, var
+
+
+@bp.post('/alias')
+def save_alias():
+    """Pair one platform listing with an Avixo product. Later uploads match it automatically."""
+    from flask import g
+    data = request.get_json(silent=True) or {}
+    try:
+        market, item, var = alias_keys(data)
+        avixo_id = str(data.get('avixo_id') or '').strip()[:40]
+        if not avixo_id:
+            raise ValueError('Choose an Avixo product.')
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    try:
+        client().table('inv_listing_aliases').upsert(dict(
+            market=market, item=item, variation=var, avixo_id=avixo_id, avixo_name=str(data.get('avixo_name') or '')[:200],
+            platform_name=str(data.get('platform_name') or '')[:300], created_by=g.staff['email']), on_conflict='market,item,variation').execute()
+    except Exception:
+        LOG.exception('Could not save pairing')
+        return jsonify(error='Could not save the pairing.'), 500
+    return jsonify(ok=True)
+
+
+@bp.post('/alias/remove')
+def remove_alias():
+    data = request.get_json(silent=True) or {}
+    try:
+        market, item, var = alias_keys(data)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    try:
+        client().table('inv_listing_aliases').delete().eq('market', market).eq('item', item).eq('variation', var).execute()
+    except Exception:
+        LOG.exception('Could not remove pairing')
+        return jsonify(error='Could not remove the pairing.'), 500
+    return jsonify(ok=True)
 
 
 @bp.get('/history')

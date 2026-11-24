@@ -241,6 +241,28 @@ def name_match(prods_tok, text, varname):
     return None, best[1] if best[0] >= 0.5 else None
 
 
+def candidates(prods_tok, text, varname, n=6):
+    """The Avixo products closest to a listing name, best first, for staff to choose from: [{'id', 'name', 'score'}].
+    Size rules are used like in name_match; if they remove everything, the closest names are still shown."""
+    lt = tokens(text + ' ' + varname)
+    need = sizes(tokens(varname))
+
+    def score(strict):
+        out = []
+        for p, pt in prods_tok:
+            if not pt:
+                continue
+            if strict and ((sizes(pt) and not sizes(pt) <= lt) or (need and not need <= pt)):
+                continue
+            sc = len(pt & lt) / len(pt)
+            if sc > 0:
+                out.append((sc, p))
+        return out
+    found = score(True) or score(False)
+    found.sort(key=lambda x: (-x[0], x[1]['name'].lower()))
+    return [dict(id=p['id'], name=p['name'], score=round(sc, 2)) for sc, p in found[:n]]
+
+
 def qty_text(v):
     return str(int(v)) if float(v) == int(v) else f'{v:g}'
 
@@ -297,11 +319,12 @@ def fefo(batches, qty, today=None):
     return '; '.join(out)
 
 
-def calculate(files, today=None, saved_links=None):
-    """saved_links: {(market, item id, variation id): (Avixo ID, product name)} from the Shopee links saved on the website.
+def calculate(files, today=None, saved_links=None, aliases=None):
+    """files: [(slot, filename, sheets)]. Returns the result dict.
+    aliases: pairings staff chose on the page {(market, item, variation): Avixo ID} (inv_listing_aliases).
+    saved_links: {(market, item id, variation id): (Avixo ID, product name)} from the Shopee links saved on the website.
     The same product has different IDs in the two Avixo accounts (FirstStep and FirstStep PJ), so a saved link is used only
     when the report's product with that ID has the same name; otherwise the product is found by its exact name."""
-    """files: [(slot, filename, sheets)]. Returns the result dict."""
     avixos, sales_lines, notes, used = [], [], [], []
     placed_diff = []
     dates = {}
@@ -371,11 +394,20 @@ def calculate(files, today=None, saved_links=None):
         elif pname and norm(pname) in by_name:
             saved[k] = by_name[norm(pname)]
     ptok = [(p, tokens(p['name'])) for p in prods]
+    by_sid = {str(p['id']): p for p in prods}
+    paired = []
     sold = defaultdict(lambda: defaultdict(float)); checks = defaultdict(list); unmatched = []
     for ln in sales_lines:
         item, var = ln['key']
         pid = links.get((ln['market'], item, var)) or links.get((ln['market'], item, '0'))
         how = 'remark'
+        if pid is None and aliases:   # a pairing staff saved earlier
+            for k in ((ln['market'], item, var), (ln['market'], item, '0')):
+                if str(aliases.get(k)) in by_sid:
+                    pid, how = by_sid[str(aliases[k])]['id'], 'alias'
+                    paired.append(dict(channel=LABEL[ln['channel']], market=ln['market'], item=item, variation=k[2], name=ln['name'],
+                                       var_name=ln['varname'], units=ln['units'], avixo_id=pid, avixo_name=by_id[pid]['name']))
+                    break
         if pid is None:
             pid = saved.get((ln['market'], item, var)) or saved.get((ln['market'], item, '0'))
             how = 'link'
@@ -383,8 +415,9 @@ def calculate(files, today=None, saved_links=None):
             p, sug = name_match(ptok, ln['name'], ln['varname'])
             pid, how = (p['id'], 'name') if p else (None, 'none')
         if pid is None:
-            unmatched.append(dict(channel=LABEL[ln['channel']], file=ln['file'], item=item, variation=ln['varname'], name=ln['name'],
-                                  units=ln['units'], suggestion=(f"{sug['id']} {sug['name']}" if sug else '')))
+            unmatched.append(dict(channel=LABEL[ln['channel']], file=ln['file'], market=ln['market'], item=item, var_key=var, variation=ln['varname'], name=ln['name'],
+                                  units=ln['units'], suggestion=(f"{sug['id']} {sug['name']}" if sug else ''),
+                                  candidates=candidates(ptok, ln['name'], ln['varname'])))
             continue
         sold[pid][ln['channel']] += ln['units']
         if how == 'name':
@@ -413,4 +446,5 @@ def calculate(files, today=None, saved_links=None):
         notes.append('Some products would go below zero in the Avixo report. Check them before updating Avixo.')
     return dict(inventory=dict(file=inv['file'], when=inv['when'], products=len(prods)), files=used, notes=notes, sales_date=sales_date, slot_dates=slot_dates,
                 channels=[dict(id=c, label=l) for c, l in CHANNELS if c in used_ch], rows=rows,
-                unmatched=sorted(unmatched, key=lambda u: -u['units']))
+                unmatched=sorted(unmatched, key=lambda u: -u['units']), paired=paired,
+                products=sorted(({'id': p['id'], 'name': p['name']} for p in prods), key=lambda x: x['name'].lower()))

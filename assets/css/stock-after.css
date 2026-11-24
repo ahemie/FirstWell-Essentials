@@ -49,3 +49,11 @@
 .sa-link{background:none;border:0;color:#0b6a5c;font-weight:600;cursor:pointer;text-decoration:underline;font:inherit}
 .sa-copy{padding:3px 9px;font-size:12px;border:1px solid #cfd5cf;border-radius:8px;background:#fff;cursor:pointer}
 .sa-copy:hover{background:#f1f4ef}
+
+/* Stock after sales: pair an unmatched listing with an Avixo product */
+.sa-pair { min-width: 320px; }
+.sa-pair .sa-pairpick { display: block; width: 100%; margin: 0 0 4px; text-align: left; font-size: 12px; white-space: normal; }
+.sa-pair .sa-other { display: flex; gap: 6px; margin-top: 4px; }
+.sa-pair .sa-other input { flex: 1; min-width: 0; }
+.sa-paired { margin: 14px 0; }
+.sa-paired summary { cursor: pointer; font-weight: 600; }

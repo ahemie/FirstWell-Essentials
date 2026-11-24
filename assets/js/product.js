@@ -1951,15 +1951,12 @@ function trendUnitCost(product, channel) {
   const fx = Number(state.monthData && state.monthData.meta && state.monthData.meta.fx);
   return Number.isFinite(fx) && fx > 0 ? lc / fx : null;
 }
-// Shopee payout for one channel in one month: the % of the price the seller keeps and the voucher cost per unit.
-// Clinic has no marketplace fee. A rate applies from its effective_from date until the next row.
+// Shopee payout for one channel in one month. It follows the Profit calculation panel: the kept % saved for
+// that month (fee history), otherwise the default fee set there. Clinic has no marketplace fee. No voucher cost.
 function trendFeeFor(channel, month) {
-  if (channel.key === 'clinic') return {keep: 1, voucher: 0, from: null};
-  const market = channel.key === 'sg' ? 'SG' : 'MY';
-  const rates = (window.FIRSTSTEP_FEES || DEFAULT_FEE_RATES).filter(r => r.marketplace === market && r.effective_from <= month + '-01')
-    .sort((a, b) => a.effective_from.localeCompare(b.effective_from));
-  const r = rates[rates.length - 1] || DEFAULT_FEE_RATES.find(x => x.marketplace === market);
-  return {keep: Number(r.keep_pct) / 100, voucher: Number(r.voucher_per_unit) || 0, from: r.effective_from};
+  if (channel.key === 'clinic') return {keep: 1, voucher: 0, from: null, source: 'clinic'};
+  const f = feePctFor(channel.key === 'sg' ? 'sg' : 'my', month);
+  return {keep: (100 - f.pct) / 100, voucher: 0, from: null, source: f.source};
 }
 // Profit per unit = price x payout share - voucher - latest unit cost.
 function trendProfitSeries(product, channel, prices, months) {
@@ -1973,8 +1970,7 @@ function trendProfitSeries(product, channel, prices, months) {
 function trendFeeNote(channel, months) {
   if (channel.key === 'clinic') return '';
   const fee = trendFeeFor(channel, months[months.length - 1]);
-  const cur = channel.key === 'sg' ? 'S$' : 'RM';
-  return `Profit uses a ${Math.round(fee.keep * 100)}% Shopee payout and a ${cur} ${fee.voucher.toFixed(2)} voucher per unit (latest month; earlier months use the rate in force then).`;
+  return `Profit / unit = price × kept % − cost, the same as the Profit calculation. Latest month keeps ${formatNumber(fee.keep * 100, 1)}%; each month uses the kept % saved in the fee history (Kept % column).`;
 }
 // Units sold (line, left scale) with price / unit and profit / unit (lines, right scale, money).
 function trendPriceChart(product, channel) {
@@ -2058,9 +2054,9 @@ function trendChannelTable(product, channel) {
       ? `${curr}${Number(price).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}`
       : '—';
     const ref = channel.key === 'clinic' && trendReported(price) ? '<small class="trend-ref-label">Latest reference</small>' : '';
-    return `<tr><td>${escapeHtml(trendMonthName(month))}</td><td>${trendReported(unit) ? escapeHtml(formatNumber(unit)) : '—'}</td><td>${escapeHtml(priceText)}${ref}</td><td>${trendReported(profitRows[i]) ? escapeHtml(money(profitRows[i])) : '—'}</td></tr>`;
+    return `<tr><td>${escapeHtml(trendMonthName(month))}</td><td>${trendReported(unit) ? escapeHtml(formatNumber(unit)) : '—'}</td><td>${escapeHtml(priceText)}${ref}</td><td>${trendReported(profitRows[i]) ? escapeHtml(money(profitRows[i])) : '—'}</td>${channel.key === 'clinic' ? '' : `<td>${escapeHtml(formatNumber(trendFeeFor(channel, month).keep * 100, 1))}%</td>`}</tr>`;
   }).join('');
-  return `<div class="trend-monthly-wrap"><table class="trend-monthly-table"><thead><tr><th>Month</th><th>Units sold</th><th>Price / unit</th><th>Profit / unit</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="trend-monthly-wrap"><table class="trend-monthly-table"><thead><tr><th>Month</th><th>Units sold</th><th>Price / unit</th><th>Profit / unit</th>${channel.key === 'clinic' ? '' : '<th>Kept %</th>'}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderProductTrends(product) {
   const sections = TREND_CHANNELS.map((channel, index) => {
@@ -2071,7 +2067,7 @@ function renderProductTrends(product) {
       : `Units: Shopee monthly performance report. Price: monthly average realized price (sales ÷ units), ${cur}; not the advertised listing price.`;
     return `<section class="trend-channel-group" aria-label="${escapeHtml(channel.label)} monthly units and price">
       <header class="trend-channel-header"><span class="trend-channel-number">${index + 1}</span><div><h3>${escapeHtml(channel.label)}</h3><p>${escapeHtml(source)}</p></div><span class="trend-currency-tag">${escapeHtml(cur)}</span></header>
-      <div class="trend-legend2"><span><i class="trend-key" style="background:${TREND_LINE_COLORS.units}"></i> Units sold</span> <span><i class="trend-key" style="background:${TREND_LINE_COLORS.price}"></i> ${isClinic ? 'Latest price' : 'Price / unit'} <b>${cur}</b></span> <span><i class="trend-key trend-key-dash" style="color:${TREND_LINE_COLORS.profit}"></i> ${isClinic ? 'Profit / unit (price − latest cost)' : 'Profit / unit (after Shopee payout and voucher − latest cost)'} <b>${cur}</b></span></div>
+      <div class="trend-legend2"><span><i class="trend-key" style="background:${TREND_LINE_COLORS.units}"></i> Units sold</span> <span><i class="trend-key" style="background:${TREND_LINE_COLORS.price}"></i> ${isClinic ? 'Latest price' : 'Price / unit'} <b>${cur}</b></span> <span><i class="trend-key trend-key-dash" style="color:${TREND_LINE_COLORS.profit}"></i> ${isClinic ? 'Profit / unit (price − latest cost)' : 'Profit / unit (price × kept % − latest cost)'} <b>${cur}</b></span></div>
       ${isClinic ? '' : `<p class="trend-fee-note">${escapeHtml(trendFeeNote(channel, trendSeries(product, 'units', [channel]).months))}</p>`}
       <div class="trend-detail-chart" role="group" aria-label="Units, price and profit chart for ${escapeHtml(channel.label)}">${trendPriceChart(product, channel)}</div>
       ${trendChannelTable(product, channel)}
@@ -2193,10 +2189,29 @@ function readFeeAssumption() {
     return {my: c(f.my), sg: c(f.sg)};
   } catch (e) { return {my: 0, sg: 0}; }
 }
+// Kept % can differ from month to month (65, 64, 66 ...). Staff save it per month here; a month with nothing saved uses the default above.
+const FEE_HISTORY_KEY = 'fw_shopee_fee_history';
+function readFeeHistory() {
+  try { const h = JSON.parse(localStorage.getItem(FEE_HISTORY_KEY) || '{}'); return h && typeof h === 'object' ? h : {}; } catch (e) { return {}; }
+}
+function saveFeeHistory(h) { try { localStorage.setItem(FEE_HISTORY_KEY, JSON.stringify(h)); } catch (e) { /* storage unavailable */ } }
+// Fee % for 'my' or 'sg' in a month ('YYYY-MM'): that month's saved value, else the default.
+function feePctFor(k, month) {
+  const m = readFeeHistory()[month], n = m && m[k] != null && m[k] !== '' ? Number(m[k]) : NaN;
+  if (Number.isFinite(n)) return {pct: Math.min(Math.max(n, 0), 100), source: 'month'};
+  return {pct: readFeeAssumption()[k], source: 'default'};
+}
+function setMonthFee(month, k, pct) {
+  if (!month) return;
+  const h = readFeeHistory();
+  if (pct == null) { if (h[month]) { delete h[month][k]; if (!Object.keys(h[month]).length) delete h[month]; } }
+  else (h[month] = h[month] || {})[k] = Math.min(Math.max(Number(pct), 0), 100);
+  saveFeeHistory(h);
+}
 function saveFeeAssumption(f) { try { localStorage.setItem(FEE_ASSUMPTION_KEY, JSON.stringify(f)); } catch (e) { /* storage unavailable */ } }
 // Estimated profit per channel = sales - units x latest cost - Shopee fee (sales x the staff fee %). Other expenses are not included.
 function channelProfit(item) {
-  const p = item.product, cost = item.costPrice || 0, has = Boolean(item.costPrice), fees = readFeeAssumption();
+  const p = item.product, cost = item.costPrice || 0, has = Boolean(item.costPrice), fees = {my: feePctFor('my', state.selectedMonth).pct, sg: feePctFor('sg', state.selectedMonth).pct};
   const mk = (units, revenue, feePct) => {
     const fee = revenue * (feePct || 0) / 100;
     return {units, revenue, feePct: feePct || 0, fee, cost: has ? units * cost : null, profit: has ? revenue - units * cost - fee : null,
@@ -2237,8 +2252,28 @@ function renderCustomCalc(item) {
     <div class="calc-fees">${inp('price', 'Price per unit RM', c.price, '0.01')}${inp('pct', 'Percentage %', c.pct, '0.1')}${inp('cost', 'Cost price RM', cost, '0.01')}</div>
     <div class="calc-custom-out" id="calc-custom-out">${customCalcHtml(item)}</div></div>`;
 }
+// Kept % per month for Shopee MY and SG, with the change from the previous month so a different % stands out.
+function renderFeeHistory(item) {
+  const months = trendSeries(item.product, 'units', [TREND_CHANNELS[0]]).months;
+  if (!months.length) return '';
+  const keptOf = (k, m) => Math.round((100 - feePctFor(k, m).pct) * 100) / 100;
+  const cell = (k, m, prev) => {
+    const f = feePctFor(k, m), kept = keptOf(k, m), diff = prev == null ? null : Math.round((kept - prev) * 100) / 100;
+    const tag = diff == null ? '' : diff === 0 ? '<span class="hist-same">=</span>' : `<span class="${diff > 0 ? 'hist-up' : 'hist-down'}">${diff > 0 ? '▲ +' : '▼ −'}${formatNumber(Math.abs(diff), 1)}</span>`;
+    return `<td class="${diff ? 'hist-changed' : ''}"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" class="${f.source === 'month' ? 'hist-saved' : 'hist-default'}" data-hist="${k}|${m}" value="${kept}" aria-label="${k === 'my' ? 'Shopee MY' : 'Shopee SG'} kept % for ${escapeHtml(trendMonthName(m))}"> ${tag}</td>`;
+  };
+  let pm = null, ps = null;
+  const rows = months.map(m => {
+    const row = `<tr><td>${escapeHtml(trendMonthName(m))}${m === state.selectedMonth ? ' <span class="muted">(selected)</span>' : ''}</td>${cell('my', m, pm)}${cell('sg', m, ps)}</tr>`;
+    pm = keptOf('my', m); ps = keptOf('sg', m); return row;
+  }).join('');
+  const range = k => { const v = months.map(m => keptOf(k, m)); return Math.min(...v) === Math.max(...v) ? `${formatNumber(v[0], 1)}%` : `${formatNumber(Math.min(...v), 1)}–${formatNumber(Math.max(...v), 1)}%`; };
+  return `<h4>Kept % history by month</h4>
+    <p class="muted calc-help">Kept % can change from month to month. Type a value on any month to save it for that month only; grey months still use the default above. ▲ ▼ show the change from the previous month. Range: Shopee MY ${range('my')}, Shopee SG ${range('sg')}.</p>
+    <table class="ba-table calc-table hist-table"><thead><tr><th>Month</th><th>Shopee MY kept %</th><th>Shopee SG kept %</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
 function renderProfitCalc(item) {
-  const r = channelProfit(item), has = Boolean(item.costPrice), fees = readFeeAssumption();
+  const r = channelProfit(item), has = Boolean(item.costPrice), fees = {my: feePctFor('my', state.selectedMonth).pct, sg: feePctFor('sg', state.selectedMonth).pct};
   const money = v => v == null ? 'n/a' : formatMoney(v);
   const cls = v => v != null && v < 0 ? 'calc-neg' : '';
   const label = (name, c) => `${name}${c.feePct ? ` <span class="muted">(fee ${formatNumber(c.feePct, 1)}%)</span>` : ''}`;
@@ -2251,9 +2286,10 @@ function renderProfitCalc(item) {
   const box = (kind, k, text, value) => `<label class="calc-fee"><span>${text}</span><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-calc-${kind}="${k}" value="${value === 0 ? '' : value}" placeholder="0"><span>%</span></label>`;
   const feeRow = (k, name) => `<div class="calc-fees"><b>${name}</b>${box('fee', k, 'Fee %', fees[k])}${box('keep', k, 'Kept %', Math.round((100 - fees[k]) * 100) / 100)}</div>`;
   return `<aside class="calc-panel" aria-label="Profit calculation"><h3>Profit calculation</h3>
-    <p class="muted calc-help">Type the fee % or the kept % (they add up to 100). It is the same Shopee fee assumption as the Action Centre, saved in this browser.</p>
+    <p class="muted calc-help">Type the fee % or the kept % (they add up to 100). It sets the default for every month and is saved in this browser (the Action Centre uses the same default). The boxes below apply to the selected month.</p>
     ${feeRow('my', 'Shopee MY')}${feeRow('sg', 'Shopee SG')}
     ${renderCustomCalc(item)}
+    ${renderFeeHistory(item)}
     <h4>Per unit: (selling price × kept %) − cost price</h4>
     <table class="ba-table calc-table"><thead><tr><th>Channel</th><th>Selling price</th><th>Kept %</th><th>You keep</th><th>Cost</th><th>Profit / unit</th><th>Units</th><th>Profit</th></tr></thead><tbody>
       ${unitLine('Clinic', r.clinic)}${unitLine('Shopee MY', r.my)}${unitLine('Shopee SG', r.sg)}
@@ -2271,13 +2307,41 @@ function bindProfitCalc(overlay, item) {
     const out = overlay.querySelector('#calc-custom-out'); if (out) out.innerHTML = customCalcHtml(item);
   }));
   const clamp = v => { const n = Number(v); return Number.isFinite(n) ? Math.min(Math.max(n, 0), 100) : 0; };
+  let refreshing = false;
+  const refresh = () => {
+    if (refreshing) return; refreshing = true;
+    try {
+    const panel = overlay.querySelector('.calc-panel');
+    if (panel) { panel.outerHTML = renderProfitCalc(item); bindProfitCalc(overlay, item); }
+    const slot = overlay.querySelector('#detail-split-slot'); if (slot) slot.outerHTML = renderSplitCards(item);
+    const tr = overlay.querySelector('#product-sales-trends'); if (tr) tr.outerHTML = renderProductTrends(item.product);
+    } finally { refreshing = false; }
+  };
   overlay.querySelectorAll('[data-calc-fee],[data-calc-keep]').forEach(input => input.addEventListener('change', () => {
     const f = readFeeAssumption(), isFee = input.hasAttribute('data-calc-fee'), k = input.dataset.calcFee || input.dataset.calcKeep;
     f[k] = isFee ? clamp(input.value) : 100 - clamp(input.value === '' ? 100 : input.value);
     saveFeeAssumption(f);
-    const panel = overlay.querySelector('.calc-panel');
-    if (panel) { panel.outerHTML = renderProfitCalc(item); bindProfitCalc(overlay, item); }
+    setMonthFee(state.selectedMonth, k, f[k]);
+    refresh();
   }));
+  overlay.querySelectorAll('[data-hist]').forEach(input => input.addEventListener('change', () => {
+    const [k, month] = input.dataset.hist.split('|');
+    setMonthFee(month, k, input.value === '' ? null : 100 - clamp(input.value));
+    refresh();
+  }));
+}
+// Revenue, profit and margin split into Clinic, Shopee MY and Shopee SG. Profit is after Shopee fees, the same as the Profit calculation.
+function renderSplitCards(item) {
+  const r = channelProfit(item), has = Boolean(item.costPrice);
+  const rows = (fmt, key) => `<ul class="ba-split">${[['Clinic', 'clinic'], ['Shopee MY', 'my'], ['Shopee SG', 'sg']].map(([n, k]) => {
+    const v = r[k][key], bad = typeof v === 'number' && v < 0;
+    return `<li><span>${n}</span><b class="num${bad ? ' calc-neg' : ''}">${v == null ? 'n/a' : fmt(v)}</b></li>`; }).join('')}</ul>`;
+  const money = v => formatMoney(v), pct = v => formatPercent(v);
+  return `<div id="detail-split-slot" style="display:contents">
+    <div class="ba-card"><h3>Estimated revenue</h3><div class="value num">${formatRoundedMoney(r.total.revenue)}</div>${rows(money, 'revenue')}<p>Clinic estimated; Shopee matched orders</p></div>
+    <div class="ba-card"><h3>Estimated profit</h3><div class="value num">${has ? formatRoundedMoney(r.total.profit) : 'n/a'}</div>${has ? rows(money, 'profit') : ''}<p>After Shopee fees, same as Profit calculation</p></div>
+    <div class="ba-card"><h3>Estimated margin</h3><div class="value num">${has && r.total.margin != null ? formatPercent(r.total.margin) : 'n/a'}</div>${has ? rows(pct, 'margin') : ''}<p>Profit ÷ revenue, after Shopee fees</p></div>
+  </div>`;
 }
 function openProductDetail(index) {
   const item = state.analysedProducts[index];
@@ -2316,9 +2380,7 @@ function openProductDetail(index) {
           <div class="ba-card"><h3>Current stock</h3><div class="value num">${formatNumber(p.q || 0)} units</div><p>Shared across all channels</p></div>
           <div class="ba-card"><h3>Stock value</h3><div class="value num">${formatRoundedMoney(item.stockValue)}</div><p>At latest product cost</p></div>
           <div class="ba-card"><h3>Units sold</h3><div class="value num">${formatNumber(item.totalUnitsSold)}</div><p>Current reporting month</p></div>
-          <div class="ba-card"><h3>Estimated revenue</h3><div class="value num">${formatRoundedMoney(totalRevenue)}</div><p>Clinic estimated; Shopee matched orders</p></div>
-          <div class="ba-card"><h3>Estimated gross profit</h3><div class="value num">${item.costPrice ? formatRoundedMoney(profit) : 'n/a'}</div><p>Before platform fees and expenses</p></div>
-          <div class="ba-card"><h3>Estimated gross margin</h3><div class="value num">${item.costPrice ? formatPercent(margin) : 'n/a'}</div><p>Revenue minus estimated product cost</p></div>
+          ${renderSplitCards(item)}
           <div class="ba-card"><h3>Stock cover</h3><div class="value num">${item.stockCoverMonths == null ? 'No sales' : formatNumber(item.stockCoverMonths,1)+' months'}</div><p>Current stock ÷ monthly units sold</p></div>
           <div class="ba-card"><h3>Earliest expiry</h3><div class="value" style="font-size:18px">${escapeHtml(formatDate(p.x) || 'Unavailable')}</div><p>Based on recorded stock batches</p></div>
         </div>

@@ -45,6 +45,29 @@ class Calc(unittest.TestCase):
         self.assertEqual(r['rows'], [])
         self.assertEqual(r['unmatched'][0]['units'], 4)
 
+    def test_saved_pairing_matches_listing_and_candidates_are_offered(self):
+        inv = avixo([(1, 'Alpha cream 40ml', 10, ''), (2, 'Beta gel 15g', 10, '')])
+        sheets = shopee('MYR', [('777', 'Totally different wording', '-', '-', 4)])
+        files = [('inventory', 'inv.xlsx', inv), ('shopee_my', 'my.xlsx', sheets)]
+        r = calculate(files, dt.date(2026, 11, 16))
+        u = r['unmatched'][0]
+        self.assertEqual((u['market'], u['item'], u['var_key']), ('MY', '777', '0'))
+        self.assertEqual({p['id'] for p in r['products']}, {1, 2})
+        r2 = calculate(files, dt.date(2026, 11, 16), aliases={('MY', '777', '0'): '2'})
+        self.assertEqual(r2['unmatched'], [])
+        self.assertEqual(r2['rows'][0]['id'], 2)
+        self.assertEqual(r2['rows'][0]['sold']['shopee_my'], 4)
+        self.assertEqual(r2['paired'][0]['avixo_name'], 'Beta gel 15g')
+        # a pairing to a product that is not in this Avixo report is ignored, not a crash
+        r3 = calculate(files, dt.date(2026, 11, 16), aliases={('MY', '777', '0'): '99'})
+        self.assertEqual(len(r3['unmatched']), 1)
+
+    def test_candidates_rank_closest_name_first(self):
+        pt = [({'id': 1, 'name': 'Alpha cream 40ml'}, tokens('Alpha cream 40ml')), ({'id': 2, 'name': 'Beta gel 15g'}, tokens('Beta gel 15g'))]
+        from backend.stock_files_calc import candidates
+        c = candidates(pt, 'ALPHA Cream Original 40ml READY STOCK', '')
+        self.assertEqual(c[0]['id'], 1)
+
     def test_one_sg_shop_and_old_sg1_sg2_remarks_count_as_sg(self):
         inv = avixo([(1, 'Alpha cream 40ml', 10, 'SG1|111|0'), (2, 'Beta gel 15g', 10, 'SG2|222|0; SG|555|0')])
         files = [('inventory', 'inv.xlsx', inv),

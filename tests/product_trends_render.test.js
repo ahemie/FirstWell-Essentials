@@ -7,22 +7,20 @@ const ctx = {document: {getElementById: dummy, querySelector: dummy, querySelect
 ctx.window = ctx; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync('assets/js/product.js','utf8') + '\n;this.__t={renderProductTrends,trendFeeFor,trendProfitSeries,monthlyPriceSection,state};', ctx);
 const t = ctx.__t;
-ctx.FIRSTSTEP_FEES = [
-  {marketplace:'MY', effective_from:'2026-01-01', keep_pct:80, voucher_per_unit:0},
-  {marketplace:'MY', effective_from:'2026-10-01', keep_pct:78, voucher_per_unit:1.5},
-  {marketplace:'SG', effective_from:'2026-01-01', keep_pct:70, voucher_per_unit:0}];
-// fee lookup respects the effective date
-assert.strictEqual(t.trendFeeFor({key:'my'}, '2026-09').keep, 0.8);
-assert.strictEqual(t.trendFeeFor({key:'my'}, '2026-10').keep, 0.78);
-assert.strictEqual(t.trendFeeFor({key:'my'}, '2026-10').voucher, 1.5);
+// Profit / unit follows the Profit calculation: kept % saved for the month, else the default fee, no voucher.
+let store = {fw_shopee_fee_assumption: JSON.stringify({my: 35, sg: 30}), fw_shopee_fee_history: JSON.stringify({'2026-10': {my: 34}, '2026-11': {my: 36}})};
+ctx.localStorage.getItem = k => store[k] == null ? null : store[k];
+assert.strictEqual(t.trendFeeFor({key:'my'}, '2026-09').keep, 0.65);   // default
+assert.strictEqual(t.trendFeeFor({key:'my'}, '2026-10').keep, 0.66);   // saved for the month
+assert.strictEqual(t.trendFeeFor({key:'my'}, '2026-11').keep, 0.64);
 assert.strictEqual(t.trendFeeFor({key:'sg'}, '2026-10').keep, 0.7);
 assert.strictEqual(t.trendFeeFor({key:'clinic'}, '2026-10').keep, 1);
-// profit = price*keep - voucher - cost  (price 106.71, cost 60)
+// profit = price*keep - cost  (price 106.71, cost 60)
 const product = {id: 237, lc: 60};
 t.state.monthData = {meta:{fx:3.2}};
 const p = t.trendProfitSeries(product, {key:'my'}, [106.71, 106.71, null], ['2026-09','2026-10','2026-10']);
-assert(Math.abs(p[0] - (106.71*0.8 - 60)) < 1e-9, p[0]);
-assert(Math.abs(p[1] - (106.71*0.78 - 1.5 - 60)) < 1e-9, p[1]);
+assert(Math.abs(p[0] - (106.71*0.65 - 60)) < 1e-9, p[0]);
+assert(Math.abs(p[1] - (106.71*0.66 - 60)) < 1e-9, p[1]);
 assert.strictEqual(p[2], null);
 // rendered section
 ctx.FIRSTSTEP_TRENDS = {meta:{months:['2026-05','2026-06','2026-07']}, products:{'237':{
@@ -34,7 +32,7 @@ const html = t.renderProductTrends(product);
 assert(!/<rect[^>]*fill-opacity="\.28"/.test(html), 'unit bars must be gone');
 assert(html.includes('#E8590C') && html.includes('#1F5FBF') && html.includes('#12915A'), 'three line colours');
 assert((html.match(/Units sold/g)||[]).length >= 3);
-assert(html.includes('Shopee payout') && html.includes('80%') && html.includes('70%'), 'fee note shown for Shopee');
+assert(html.includes('same as the Profit calculation') && html.includes('Kept %'), 'fee note and Kept % column shown for Shopee');
 assert(!html.includes('Coming Soon'));
 const pricing = t.monthlyPriceSection(product, {costPrice: 60});
 assert(!pricing.includes('Coming Soon') && !pricing.includes('Price impact'), 'Coming soon removed from pricing table');

@@ -120,6 +120,27 @@ async function calc() {
   } catch (e) { upmsg(e.message); up = null; $('upout').innerHTML = ''; }
   $('calc').disabled = false; $('calc').textContent = 'Preview →';
 }
+async function postJson(url, body) {
+  if (!csrf) csrf = (await api('/api/auth/session')).csrf_token;
+  const r = await fetch(url, {method: 'POST', credentials: 'same-origin', headers: {'X-CSRF-Token': csrf, 'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  let j = {}; try { j = await r.json(); } catch { /* not JSON */ }
+  if (!r.ok) throw Error(j.error || 'Server error ' + r.status);
+}
+// Save one pairing, then read the same files again so the table includes these sales.
+async function pairListing(i, avixoId) {
+  const u = up.unmatched[i], p = up.products.find(x => String(x.id) === String(avixoId));
+  if (!u || !p) return;
+  try {
+    await postJson('/api/stock-after-sales/alias', {market: u.market, item: u.item, variation: u.var_key, avixo_id: String(p.id), avixo_name: p.name, platform_name: u.name});
+    await calc();
+    upmsg('Paired "' + u.name + '" with ' + p.id + ' · ' + p.name + '. It will be matched automatically next time.');
+  } catch (e) { upmsg(e.message); }
+}
+async function unpair(i) {
+  const u = up.paired[i];
+  try { await postJson('/api/stock-after-sales/alias/remove', {market: u.market, item: u.item, variation: u.variation}); await calc(); upmsg('Pairing removed.'); }
+  catch (e) { upmsg(e.message); }
+}
 const RNAME = {shopee_my: 'MY', shopee_sg: 'SG', tiktok: 'TT'};
 const ddmmyyyy = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? m[3] + m[2] + m[1] : ''; };
 // Each platform keeps the date of its own sales file, unless staff changed the sales date (then one date is used for all).
@@ -158,8 +179,16 @@ function renderUp() {
     '<button type="button" id="copyRem" class="alt">Copy all remarks</button><button type="button" id="copyTsv" class="alt">Copy table (paste into Excel / Avixo)</button><button type="button" id="dlCsv" class="alt">Download CSV</button></div>';
   h += '<div id="uptable">' + (j.rows.length ? upTable(j.rows) : '<p class="sa-muted">No sold products were found in these files.</p>') + '</div>';
   if (j.unmatched.length) {
-    h += '<h2>Sold but not matched to an Avixo product</h2><p class="sa-muted">These are NOT in the table above. Add the platform ID to the product Comments in Avixo (see the help below) or deal with them by hand.</p><div class="sa-wrap"><table><thead><tr><th>Platform</th><th>Product</th><th class="num">Units</th><th>Closest Avixo product</th></tr></thead><tbody>' +
-      j.unmatched.map(u => `<tr><td>${esc(u.channel)}</td><td>${esc(u.name)}${u.variation ? ' <span class="sa-muted">/ ' + esc(u.variation) + '</span>' : ''}<br><span class="sa-muted">ID ${esc(u.item)}</span></td><td class="num">${fmt(u.units)}</td><td>${esc(u.suggestion || '')}</td></tr>`).join('') + '</tbody></table></div>';
+    h += '<h2>Sold but not matched to an Avixo product</h2><p class="sa-muted">Pick the Avixo product for each listing. The pairing is saved, so this listing is matched automatically from now on, and the table above updates.</p>' +
+      '<datalist id="avixoList">' + j.products.map(p => `<option value="${esc(p.id + ' · ' + p.name)}"></option>`).join('') + '</datalist>' +
+      '<div class="sa-wrap"><table><thead><tr><th>Platform</th><th>Listing</th><th class="num">Units</th><th>Pair with Avixo product</th></tr></thead><tbody>' +
+      j.unmatched.map((u, i) => `<tr><td>${esc(u.channel)}</td><td>${esc(u.name)}${u.variation ? ' <span class="sa-muted">/ ' + esc(u.variation) + '</span>' : ''}<br><span class="sa-muted">ID ${esc(u.item)}</span></td><td class="num">${fmt(u.units)}</td>` +
+        `<td class="sa-pair">${(u.candidates || []).slice(0, 3).map(c => `<button type="button" class="alt sa-pairpick" data-u="${i}" data-id="${esc(c.id)}" title="Pair with ${esc(c.name)}">${esc(c.id + ' · ' + c.name)}</button>`).join('')}` +
+        `<span class="sa-other"><input type="text" list="avixoList" placeholder="Search other Avixo name or ID…" data-search="${i}"><button type="button" class="sa-pairbtn" data-u="${i}">Pair</button></span></td></tr>`).join('') + '</tbody></table></div>';
+  }
+  if ((j.paired || []).length) {
+    h += `<details class="sa-paired"><summary>Matched by a saved pairing (${j.paired.length})</summary><div class="sa-wrap"><table><thead><tr><th>Platform</th><th>Listing</th><th>Avixo product</th><th class="num">Units</th><th></th></tr></thead><tbody>` +
+      j.paired.map((u, i) => `<tr><td>${esc(u.channel)}</td><td>${esc(u.name)}${u.var_name ? ' <span class="sa-muted">/ ' + esc(u.var_name) + '</span>' : ''}<br><span class="sa-muted">ID ${esc(u.item)}</span></td><td>${esc(u.avixo_id + ' · ' + u.avixo_name)}</td><td class="num">${fmt(u.units)}</td><td><button type="button" class="alt sa-unpair" data-p="${i}">Remove pairing</button></td></tr>`).join('') + '</tbody></table></details>';
   }
   if (j.can_save) h += '<div class="sa-confirm"><div class="sa-muted">Saving only keeps a record in the History tab. It does not change any stock, here or in Avixo.</div>' +
     '<div class="sa-actions"><button type="button" id="saveBtn">Save to history</button></div></div>';
@@ -169,6 +198,14 @@ function renderUp() {
   bindCopy();
   $('copyRem').onclick = () => copyText(up.rows.map(r => remarkFor(r, salesDate())).join('\n'), $('copyRem'), 'Copied ' + up.rows.length);
   if (j.can_save) $('saveBtn').onclick = saveNow;
+  document.querySelectorAll('.sa-pairpick').forEach(b => b.onclick = () => pairListing(+b.dataset.u, b.dataset.id));
+  document.querySelectorAll('.sa-pairbtn').forEach(b => b.onclick = () => {
+    const raw = (document.querySelector(`[data-search="${b.dataset.u}"]`).value || '').trim(), id = raw.split(' · ')[0].trim();
+    const hit = up.products.find(p => String(p.id) === id) || up.products.find(p => p.name.toLowerCase() === raw.toLowerCase());
+    if (!hit) return upmsg('Choose a product from the list (type part of the name or the ID).');
+    pairListing(+b.dataset.u, hit.id);
+  });
+  document.querySelectorAll('.sa-unpair').forEach(b => b.onclick = () => unpair(+b.dataset.p));
   $('copyTsv').onclick = () => copyText(upLines().map(l => l.join('\t')).join('\n'), $('copyTsv'));
   $('dlCsv').onclick = () => {
     const blob = new Blob(['\ufeff' + upLines().map(l => l.map(csvCell).join(',')).join('\r\n')], {type: 'text/csv;charset=utf-8'});
