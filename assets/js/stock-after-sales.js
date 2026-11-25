@@ -273,6 +273,12 @@ async function loadHistory() {
     $('histout').querySelectorAll('[data-hid]').forEach(b => b.onclick = () => openHist(b.dataset.hid, b));
   } catch (e) { $('histmsg').hidden = false; $('histmsg').textContent = e.message; $('histout').innerHTML = ''; }
 }
+// Sales deducted from FirstStep's Avixo end with "_ Firstwell". Entries saved before that rule get it added when shown.
+const REF_SUFFIX = '_ Firstwell';
+const histRemark = l => {
+  const r = String(l.remark || '');
+  return r && /^FS-/i.test(String(l.avixo_id || '')) && !r.endsWith(REF_SUFFIX) ? r + ' ' + REF_SUFFIX : r;
+};
 async function openHist(id, btn) {
   const row = $('hd-' + id), cell = row.firstElementChild, legacy = btn.dataset.mode !== 'record';
   if (!row.hidden) { row.hidden = true; btn.textContent = 'View'; return; }
@@ -281,11 +287,11 @@ async function openHist(id, btn) {
     const j = await api('/api/stock-after-sales/history/' + encodeURIComponent(id));
     const status = l => l.undone ? 'Undone' : l.short > 0 ? 'Short' : 'Deducted';
     cell.innerHTML = '<div class="sa-actions"><button type="button" class="alt" data-csv="' + esc(id) + '">Download CSV</button></div><div class="sa-wrap"><table><thead><tr><th>Product</th><th>Platform</th><th class="num">Sold</th><th class="num">Avixo before → after</th><th>Remark for Avixo</th>' + (legacy ? '<th class="num">Deducted</th><th class="num">App before → after</th><th>Status</th>' : '') + '</tr></thead><tbody>' +
-      j.lines.map(l => `<tr><td>${esc(l.product)}</td><td>${esc(l.channel)}</td><td class="num">${fmt(l.sold)}</td><td class="num">${l.avixo_before == null ? '' : fmt(l.avixo_before) + ' → ' + fmt(l.avixo_after)}</td><td>${esc(l.remark || '')}${l.remark ? ' <button type="button" class="sa-copy" data-remark="' + esc(l.remark) + '">Copy</button>' : ''}</td>` +
+      j.lines.map(l => `<tr><td>${esc(l.product)}</td><td>${esc(l.channel)}</td><td class="num">${fmt(l.sold)}</td><td class="num">${l.avixo_before == null ? '' : fmt(l.avixo_before) + ' → ' + fmt(l.avixo_after)}</td><td>${esc(histRemark(l) || '')}${histRemark(l) ? ' <button type="button" class="sa-copy" data-remark="' + esc(histRemark(l)) + '">Copy</button>' : ''}</td>` +
         (legacy ? `<td class="num">${fmt(l.applied)}</td><td class="num">${l.app_before == null ? '' : fmt(l.app_before) + ' → ' + fmt(l.app_after)}</td><td>${esc(status(l))}</td>` : '') + '</tr>').join('') + '</tbody></table></div>';
     cell.querySelectorAll('.sa-copy').forEach(b => b.onclick = () => copyText(b.dataset.remark, b));
     cell.querySelector('[data-csv]').onclick = () => {
-      const lines = [['Product', 'Avixo ID', 'Platform', 'Sold', 'Avixo before', 'Avixo after', 'Remark for Avixo']].concat(j.lines.map(l => [l.product, l.avixo_id, l.channel, l.sold, l.avixo_before ?? '', l.avixo_after ?? '', l.remark || '']));
+      const lines = [['Product', 'Avixo ID', 'Platform', 'Sold', 'Avixo before', 'Avixo after', 'Remark for Avixo']].concat(j.lines.map(l => [l.product, l.avixo_id, l.channel, l.sold, l.avixo_before ?? '', l.avixo_after ?? '', histRemark(l) || '']));
       const blob = new Blob(['\ufeff' + lines.map(l => l.map(csvCell).join(',')).join('\r\n')], {type: 'text/csv;charset=utf-8'});
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock-after-sales-history.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     };

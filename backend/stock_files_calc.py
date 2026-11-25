@@ -26,7 +26,7 @@ SLOT_MARKET = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'tiktok': 'TT'}
 REMARK_MARKET = {'MY': 'MY', 'SG': 'SG', 'SG1': 'SG', 'SG2': 'SG', 'TT': 'TT'}  # one SG shop: old SG1/SG2 remarks count as SG
 
 
-REF_REMARK_SUFFIX = 'Firstwell'   # added to the remark of sales deducted from FirstStep's Avixo, so FirstStep sees they were FirstWell's sales
+REF_REMARK_SUFFIX = '_ Firstwell'   # added to the remark of sales deducted from FirstStep's Avixo, so FirstStep sees they were FirstWell's sales
 
 
 class FileError(ValueError):
