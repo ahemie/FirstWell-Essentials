@@ -117,6 +117,10 @@ async function calc() {
     if (r.status === 401) { location.href = '/login'; return; }
     let j; try { j = await r.json(); } catch { throw Error('Unexpected server response'); }
     if (!r.ok) throw Error(j.error || 'Server error ' + r.status);
+    // Products with 0 in Avixo before are not shown (nothing to deduct from). They are listed in a note under the summary.
+    const zero = r => !(r.before > 0);
+    j.hidden = j.rows.filter(zero).concat(j.ref && j.ref.rows ? j.ref.rows.filter(zero) : []);
+    j.rows = j.rows.filter(r => !zero(r)); if (j.ref && j.ref.rows) j.ref.rows = j.ref.rows.filter(r => !zero(r));
     up = j; renderUp();
   } catch (e) { upmsg(e.message); up = null; $('upout').innerHTML = ''; }
   $('calc').disabled = false; $('calc').textContent = 'Preview →';
@@ -164,7 +168,8 @@ async function copyText(text, btn, done) {
   }
   if (btn) { const old = btn.textContent; btn.textContent = done || 'Copied'; setTimeout(() => { btn.textContent = old; }, 1200); }
 }
-const salesDate = () => ($('salesDate') && $('salesDate').value) || '';
+// On the first draw of the table the date box does not exist yet, so fall back to the sales date found in the files.
+const salesDate = () => ($('salesDate') && $('salesDate').value) || (up && up.sales_date) || '';
 function upTable(rows) {
   const ch = up.channels, iso = salesDate();
   return '<div class="sa-wrap"><table><thead><tr><th>ID</th><th>Product</th><th class="num">Stock before</th>' + ch.map(c => `<th class="num">${esc(c.label)}</th>`).join('') +
@@ -181,6 +186,7 @@ function renderUp() {
   h += '<div class="sa-cards">' + `<div class="sa-card"><b>${j.rows.length}</b><span>Products sold (this Avixo)</span></div><div class="sa-card"><b>${fmt(tot)}</b><span>Units sold (this Avixo)</span></div>` +
     (j.ref ? `<div class="sa-card"><b>${fmt(rtot)}</b><span>Units from FirstStep's Avixo</span></div>` : '') + `<div class="sa-card"><b>${fmt(un)}</b><span>Units not matched</span></div></div>`;
   j.notes.forEach(n => h += `<div class="sa-note">${esc(n)}</div>`);
+  if (j.hidden.length) h += `<div class="sa-note">Not shown: ${j.hidden.length} sold product${j.hidden.length > 1 ? 's' : ''} with 0 in Avixo before (${j.hidden.map(r => esc(r.id + ' ' + r.name)).join(', ')}).</div>`;
   if (j.already_saved.length) h += '<div class="sa-msg">Already saved in the history before: ' + j.already_saved.map(a => esc(a.file)).join(', ') + '.</div>';
   h += '<div class="sa-actions"><label class="sa-muted">Sales date <input type="date" id="salesDate" value="' + esc(j.sales_date || '') + '"></label>' +
     '<button type="button" id="copyRem" class="alt">Copy all remarks</button><button type="button" id="copyTsv" class="alt">Copy table (paste into Excel / Avixo)</button><button type="button" id="dlCsv" class="alt">Download CSV</button></div>';

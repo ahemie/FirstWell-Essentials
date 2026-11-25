@@ -20,7 +20,10 @@
 .sa th{background:#f3efe4;text-align:left;font-size:12px;padding:9px 12px;position:sticky;top:0}
 .sa td{padding:8px 12px;border-top:1px solid #f0ebdf}
 .sa .num{text-align:right;font-variant-numeric:tabular-nums}
-.sa tr.neg td{background:#fbeceb}
+/* Alternate rows: white, light blue, white, light blue... with thin grid lines */
+.sa tbody tr:nth-child(odd) td{background:#fff}
+.sa tbody tr:nth-child(even) td{background:#edf1fb}
+.sa tbody td{border:1px solid #d3d7e0}
 .sa .neg-n{color:#b3261e;font-weight:700}
 .sa h2{font-size:17px;margin:24px 0 8px}
 .sa-search{min-height:40px;border:1px solid #b9b3a3;border-radius:8px;padding:0 10px;font:inherit;margin:0 0 10px;width:min(360px,100%)}
@@ -32,7 +35,7 @@
 .sa-help summary{cursor:pointer;font-weight:600}
 .sa-help code{background:#efebe0;border-radius:5px;padding:1px 6px;font-size:12px}
 .sa-files{margin:0 0 12px;padding-left:18px;color:#5d6965}
-.sa td.chk{color:#6b4306;background:#fcf1de;font-size:12px}
+.sa td.chk{color:#6b4306;font-size:12px}
 .sa-actions{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .sa-actions button{min-height:40px;border-radius:10px;border:1px solid #0b3d37;background:#0b3d37;color:#fff;font-weight:600;padding:0 16px;cursor:pointer}
 .sa-actions button.alt{background:#fff;color:#0b3d37}
