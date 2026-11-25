@@ -78,7 +78,7 @@ document.querySelectorAll('.sa-tabs button').forEach(b => b.onclick = () => {
 });
 
 // ---------- Upload files tab ----------
-const SLOTS = [['inventory', 'Inventory (Avixo report)'], ['shopee_my', 'Shopee MY'], ['shopee_sg', 'Shopee SG'], ['tiktok', 'TikTok']];
+const SLOTS = [['inventory', 'Inventory (FirstWell Avixo report)'], ['inventory_fs', "FirstStep's Avixo report (optional)"], ['shopee_my', 'Shopee MY'], ['shopee_sg', 'Shopee SG'], ['tiktok', 'TikTok']];
 $('slots').innerHTML = SLOTS.map(([k, l]) => `<label class="sa-slot">${l}<input type="file" id="slot-${k}" accept=".xlsx,.xls"></label>`).join('');
 const slotInput = k => $('slot-' + k);
 function guessSlot(n) {
@@ -90,9 +90,10 @@ function guessSlot(n) {
   return null;
 }
 $('multi').onchange = e => {
-  const left = [];
+  const left = [], reports = [...e.target.files].filter(f => guessSlot(f.name) === 'inventory').length;
   for (const f of e.target.files) {
     const k = guessSlot(f.name);
+    if (k === 'inventory' && reports > 1) { left.push(f.name + ' (two Avixo reports: choose which is FirstWell and which is FirstStep)'); continue; }
     if (k) { const dt = new DataTransfer(); dt.items.add(f); slotInput(k).files = dt.files; } else left.push(f.name);
   }
   upmsg(left.length ? 'Could not tell where these go: ' + left.join(', ') + '. Choose them in the right box.' : ''); e.target.value = '';
@@ -186,7 +187,7 @@ function renderUp() {
   h += '<h2>Deduct from the uploaded Avixo (' + esc(j.inventory.file) + ')</h2>';
   h += '<div id="uptable">' + (j.rows.length ? upTable(j.rows) : '<p class="sa-muted">No sold products were found in this Avixo report.</p>') + '</div>';
   if (j.ref && refRows().length) {
-    h += `<h2>Deduct from ${esc(j.ref.label)}</h2><p class="sa-muted">Sold on FirstWell but not in the uploaded Avixo report, found in FirstStep's Avixo instead. Update these in <b>FirstStep's Avixo</b>, not FirstWell's. Stock before = FirstStep's last Avixo report in its dashboard (${esc(j.ref.when)}), so it may be a few weeks old.</p>` +
+    h += `<h2>Deduct from ${esc(j.ref.label)}</h2><p class="sa-muted">Sold on FirstWell but not in the uploaded Avixo report, found in FirstStep's Avixo instead. Update these in <b>FirstStep's Avixo</b>, not FirstWell's. Stock before = ${j.ref.source === 'upload' ? `the FirstStep Avixo report you uploaded (${esc(j.ref.when)})` : `FirstStep's last Avixo report in its dashboard (${esc(j.ref.when)}), so it may be a few weeks old. Upload FirstStep's latest Avixo report to use fresh stock`}.</p>` +
       '<div class="sa-actions"><button type="button" id="copyRemRef" class="alt">Copy these remarks</button><button type="button" id="copyTsvRef" class="alt">Copy this table</button><button type="button" id="dlCsvRef" class="alt">Download CSV</button></div>' +
       '<div id="reftable">' + upTable(refRows()) + '</div>';
   }
