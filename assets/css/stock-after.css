@@ -20,10 +20,14 @@
 .sa th{background:#f3efe4;text-align:left;font-size:12px;padding:9px 12px;position:sticky;top:0}
 .sa td{padding:8px 12px;border-top:1px solid #f0ebdf}
 .sa .num{text-align:right;font-variant-numeric:tabular-nums}
-/* Alternate rows: white, light blue, white, light blue... with thin grid lines */
-.sa tbody tr:nth-child(odd) td{background:#fff}
-.sa tbody tr:nth-child(even) td{background:#edf1fb}
-.sa tbody td{border:1px solid #d3d7e0}
+/* Alternate rows: white, light blue, white, light blue... with thin grid lines (child selectors, so a table inside a row keeps its own stripes) */
+.sa table > tbody > tr:nth-child(odd) > td{background:#fff}
+.sa table > tbody > tr:nth-child(even) > td{background:#edf1fb}
+.sa table > tbody > tr > td{border:1px solid #d3d7e0}
+/* History list: each saved entry is a row plus a hidden detail row, so stripe the entries themselves and keep the detail area plain white */
+.sa table > tbody > tr.hrow > td{background:#fff}
+.sa table > tbody > tr.hrow.zb > td{background:#edf1fb}
+.sa table > tbody > tr[id^="hd-"] > td{background:#fff;border:1px solid #d3d7e0}
 .sa .neg-n{color:#b3261e;font-weight:700}
 .sa h2{font-size:17px;margin:24px 0 8px}
 .sa-search{min-height:40px;border:1px solid #b9b3a3;border-radius:8px;padding:0 10px;font:inherit;margin:0 0 10px;width:min(360px,100%)}
