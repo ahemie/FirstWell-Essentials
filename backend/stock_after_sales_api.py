@@ -242,7 +242,7 @@ def save_history():
                  for r in result['rows'] for c, q in r['sold'].items() if q > 0]
         # FirstStep's Avixo is kept apart: its IDs get an FS- prefix and the name says which Avixo to update.
         lines += [dict(avixo_id='FS-' + str(r['id']), name=r['name'] + " [FirstStep's Avixo]", channel=sc.LABEL[c], qty=q,
-                       avixo_before=r['before'], avixo_after=r['after'], remark=sc.make_remark(r['sold'], date_iso, own_dates))
+                       avixo_before=r['before'], avixo_after=r['after'], remark=sc.make_remark(r['sold'], date_iso, own_dates) + ' ' + sc.REF_REMARK_SUFFIX)
                   for r in ((result.get('ref') or {}).get('rows') or []) for c, q in r['sold'].items() if q > 0]
         sales = sales_infos(infos)
         if not lines or not sales:

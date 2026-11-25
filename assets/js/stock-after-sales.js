@@ -155,7 +155,8 @@ function remarkFor(r, iso) {
     if (!groups.has(d)) groups.set(d, []);
     groups.get(d).push((RNAME[c.id] || c.label) + ' x' + r.sold[c.id]);
   });
-  return [...groups].map(([d, parts]) => (d ? [d] : []).concat(parts).join(' ')).join('; ');
+  const text = [...groups].map(([d, parts]) => (d ? [d] : []).concat(parts).join(' ')).join('; ');
+  return r.remark_suffix ? text + ' ' + r.remark_suffix : text;   // sales deducted from FirstStep's Avixo end with "Firstwell"
 }
 async function copyText(text, btn, done) {
   try { await navigator.clipboard.writeText(text); } catch {
