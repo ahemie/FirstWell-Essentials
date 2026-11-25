@@ -292,9 +292,13 @@ async function openHist(id, btn) {
   try {
     const j = await api('/api/stock-after-sales/history/' + encodeURIComponent(id));
     const status = l => l.undone ? 'Undone' : l.short > 0 ? 'Short' : 'Deducted';
+    // Same as the upload preview: products with 0 in Avixo before are not shown (a note names them).
+    const hiddenNames = [...new Set(j.lines.filter(l => l.avixo_before != null && Number(l.avixo_before) === 0).map(l => l.avixo_id + ' ' + l.product))];
+    j.lines = j.lines.filter(l => !(l.avixo_before != null && Number(l.avixo_before) === 0));
     cell.innerHTML = '<div class="sa-actions"><button type="button" class="alt" data-csv="' + esc(id) + '">Download CSV</button></div><div class="sa-wrap"><table><thead><tr><th>Product</th><th>Platform</th><th class="num">Sold</th><th class="num">Avixo before → after</th><th>Remark for Avixo</th>' + (legacy ? '<th class="num">Deducted</th><th class="num">App before → after</th><th>Status</th>' : '') + '</tr></thead><tbody>' +
       j.lines.map(l => `<tr><td>${esc(l.product)}</td><td>${esc(l.channel)}</td><td class="num">${fmt(l.sold)}</td><td class="num">${l.avixo_before == null ? '' : fmt(l.avixo_before) + ' → ' + fmt(l.avixo_after)}</td><td>${esc(histRemark(l) || '')}${histRemark(l) ? ' <button type="button" class="sa-copy" data-remark="' + esc(histRemark(l)) + '">Copy</button>' : ''}</td>` +
         (legacy ? `<td class="num">${fmt(l.applied)}</td><td class="num">${l.app_before == null ? '' : fmt(l.app_before) + ' → ' + fmt(l.app_after)}</td><td>${esc(status(l))}</td>` : '') + '</tr>').join('') + '</tbody></table></div>';
+    if (hiddenNames.length) cell.insertAdjacentHTML('beforeend', `<div class="sa-note">Not shown: ${hiddenNames.length} sold product${hiddenNames.length > 1 ? 's' : ''} with 0 in Avixo before (${hiddenNames.map(esc).join(', ')}).</div>`);
     cell.querySelectorAll('.sa-copy').forEach(b => b.onclick = () => copyText(b.dataset.remark, b));
     cell.querySelector('[data-csv]').onclick = () => {
       const lines = [['Product', 'Avixo ID', 'Platform', 'Sold', 'Avixo before', 'Avixo after', 'Remark for Avixo']].concat(j.lines.map(l => [l.product, l.avixo_id, l.channel, l.sold, l.avixo_before ?? '', l.avixo_after ?? '', histRemark(l) || '']));
