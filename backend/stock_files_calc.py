@@ -26,6 +26,9 @@ SLOT_MARKET = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'tiktok': 'TT'}
 REMARK_MARKET = {'MY': 'MY', 'SG': 'SG', 'SG1': 'SG', 'SG2': 'SG', 'TT': 'TT'}  # one SG shop: old SG1/SG2 remarks count as SG
 
 
+REF_REMARK_SUFFIX = '_ Firstwell'   # added to the remark of sales deducted from FirstStep's Avixo, so FirstStep sees they were FirstWell's sales
+
+
 class FileError(ValueError):
     pass
 
@@ -513,8 +516,11 @@ def calculate(files, today=None, saved_links=None, aliases=None, ref=None):
     if len({d for v in dates.values() for d in v[-1:]}) > 1:
         notes.append('The sales files are for different days: ' + ', '.join(f'{LABEL[k]} {v[-1].strftime("%d/%m/%Y")}' for k, v in dates.items() if v) + '. Each platform keeps the date of its own file in the remark. To use one date for all, change the sales date.')
     slot_dates = {k: v[-1].isoformat() for k, v in dates.items() if v}
-    for r in rows + (ref_out['rows'] if ref_out else []):
+    for r in rows:
         r['remark'] = make_remark(r['sold'], sales_date, slot_dates)
+    for r in (ref_out['rows'] if ref_out else []):
+        r['remark_suffix'] = REF_REMARK_SUFFIX
+        r['remark'] = make_remark(r['sold'], sales_date, slot_dates) + ' ' + REF_REMARK_SUFFIX
     if any(r['after'] < 0 for r in rows):
         notes.append('Some products would go below zero in the Avixo report. Check them before updating Avixo.')
     return dict(inventory=dict(file=inv['file'], when=inv['when'], products=len(prods)), files=used, notes=notes, sales_date=sales_date, slot_dates=slot_dates,

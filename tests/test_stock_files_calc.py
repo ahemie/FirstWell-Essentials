@@ -39,6 +39,8 @@ class Calc(unittest.TestCase):
         # the Beta listing is not in FirstWell, so it goes to the FirstStep report, in its own table, with the uploaded stock (7, not 500)
         self.assertEqual([(x['id'], x['name'], x['before'], x['after']) for x in r['ref']['rows']], [(1, 'Beta gel 15g', 7, 3)])
         self.assertEqual(r['ref']['source'], 'upload')
+        self.assertEqual(r['ref']['rows'][0]['remark'], 'MY x4 _ Firstwell')   # FirstStep's Avixo remark ends with _ Firstwell
+        self.assertNotIn('_ Firstwell', r['rows'][0]['remark'])
         self.assertEqual(r['ref']['when'], '20/11/2026 09:00 AM')
         self.assertEqual(r['unmatched'], [])
         self.assertEqual(r['inventory']['file'], 'fw.xlsx')
@@ -108,7 +110,7 @@ class Calc(unittest.TestCase):
         self.assertEqual({x['id']: x['after'] for x in r['ref']['rows']}, {349: 30, 911: 54})         # FirstStep kept apart
         self.assertEqual([u['item'] for u in r['unmatched']], ['333'])
         self.assertTrue(r['unmatched'][0]['ref_candidates'] is not None)
-        self.assertEqual(r['ref']['rows'][0]['remark'], 'MY x2')
+        self.assertEqual(r['ref']['rows'][0]['remark'], 'MY x2 _ Firstwell')
         self.assertTrue(any(p['source'] == 'firststep' for p in r['paired']))
         # a FirstStep pairing is never applied to the uploaded report, even when the same ID exists there
         r2 = calculate([inv, sales], dt.date(2026, 11, 18), aliases={('MY', '444', '0'): ('1', 'firststep')}, ref=ref)
