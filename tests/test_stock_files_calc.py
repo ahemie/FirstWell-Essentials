@@ -28,6 +28,24 @@ class Calc(unittest.TestCase):
         self.assertEqual(row['expiry'], '01/01/2028 x5')
         self.assertEqual(row['check'], '')
 
+    def test_uploaded_firststep_report_is_second_and_kept_separate(self):
+        fw = avixo([(1, 'Alpha cream 40ml', 10, 'MY|222|0')])
+        fs = avixo([(1, 'Beta gel 15g', 7, ''), (2, 'Alpha cream 40ml', 99, '')], when='20/11/2026 09:00 AM')
+        sales = ('shopee_my', 'my.xlsx', shopee('MYR', [('222', 'Alpha listing', '-', '-', 2), ('333', 'Beta gel 15g', '-', '-', 4)]))
+        old_ref = dict(label="FirstStep's Avixo", when='01/10/2026', products=[dict(id=1, name='Beta gel 15g', unit='Box', balance=500, batches=[])])
+        r = calculate([('inventory', 'fw.xlsx', fw), ('inventory_fs', 'fs.xlsx', fs), sales], dt.date(2026, 11, 20), ref=old_ref)
+        # FirstWell's own report first: the Alpha listing is deducted from FirstWell, ID 1 there is Alpha not Beta
+        self.assertEqual([(x['id'], x['before'], x['after']) for x in r['rows']], [(1, 10, 8)])
+        # the Beta listing is not in FirstWell, so it goes to the FirstStep report, in its own table, with the uploaded stock (7, not 500)
+        self.assertEqual([(x['id'], x['name'], x['before'], x['after']) for x in r['ref']['rows']], [(1, 'Beta gel 15g', 7, 3)])
+        self.assertEqual(r['ref']['source'], 'upload')
+        self.assertEqual(r['ref']['when'], '20/11/2026 09:00 AM')
+        self.assertEqual(r['unmatched'], [])
+        self.assertEqual(r['inventory']['file'], 'fw.xlsx')
+        # without the upload the saved copy is used
+        r2 = calculate([('inventory', 'fw.xlsx', fw), sales], dt.date(2026, 11, 20), ref=old_ref)
+        self.assertEqual(r2['ref']['rows'][0]['before'], 500)
+
     def test_variation_parent_not_double_counted(self):
         sheets = shopee('SGD', [('9', 'Gel', '-', '-', 3), ('9', 'Gel', '70', '15g', 1), ('9', 'Gel', '71', '60g', 2)])
         files = [('inventory', 'inv.xlsx', avixo([(1, 'Gel 15g', 10, 'SG|9|70'), (2, 'Gel 60g', 10, 'SG|9|71')])), ('shopee_sg', 'sg.xlsx', sheets)]

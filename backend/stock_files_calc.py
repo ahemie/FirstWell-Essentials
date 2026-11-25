@@ -18,9 +18,9 @@ from collections import defaultdict
 
 CHANNELS = [('shopee_my', 'Shopee MY'), ('shopee_sg', 'Shopee SG'), ('tiktok', 'TikTok')]
 LABEL = dict(CHANNELS)
-SLOTS = [('inventory', 'Avixo Inventory')] + CHANNELS
+SLOTS = [('inventory', 'Avixo Inventory'), ('inventory_fs', "FirstStep's Avixo Inventory")] + CHANNELS
 REMARK_NAME = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'tiktok': 'TT'}  # same short names as the file names
-SLOT_KIND = {'inventory': 'avixo', 'shopee_my': 'shopee', 'shopee_sg': 'shopee', 'tiktok': 'tiktok'}
+SLOT_KIND = {'inventory': 'avixo', 'inventory_fs': 'avixo', 'shopee_my': 'shopee', 'shopee_sg': 'shopee', 'tiktok': 'tiktok'}
 SLOT_CURRENCY = {'shopee_my': 'MYR', 'shopee_sg': 'SGD'}
 SLOT_MARKET = {'shopee_my': 'MY', 'shopee_sg': 'SG', 'tiktok': 'TT'}
 REMARK_MARKET = {'MY': 'MY', 'SG': 'SG', 'SG1': 'SG', 'SG2': 'SG', 'TT': 'TT'}  # one SG shop: old SG1/SG2 remarks count as SG
@@ -369,7 +369,7 @@ def match_reference(ref, unmatched, ref_alias, saved_links, paired, today):
                          total=total, after=p['balance'] - total, expiry=fefo(p.get('batches') or [], total, today),
                          check='; '.join(dict.fromkeys(checks[pid]))))
     rows.sort(key=lambda r: r['name'].lower())
-    return left, dict(label=ref.get('label') or "FirstStep's Avixo", when=ref.get('when'), rows=rows,
+    return left, dict(label=ref.get('label') or "FirstStep's Avixo", when=ref.get('when'), rows=rows, source=ref.get('source', 'saved'), file=ref.get('file'),
                       products=sorted(({'id': p['id'], 'name': p['name']} for p in rprods), key=lambda x: x['name'].lower()))
 
 
@@ -383,6 +383,7 @@ def calculate(files, today=None, saved_links=None, aliases=None, ref=None):
     The same product has different IDs in the two Avixo accounts (FirstStep and FirstStep PJ), so a saved link is used only
     when the report's product with that ID has the same name; otherwise the product is found by its exact name."""
     avixos, sales_lines, notes, used = [], [], [], []
+    fs_inv = None
     placed_diff = []
     dates = {}
     for slot, name, sheets in files:
@@ -398,11 +399,14 @@ def calculate(files, today=None, saved_links=None, aliases=None, ref=None):
                 notes.append(f'{name} was in the {LABEL[slot]} box but it is a {LABEL[real]} file ({SLOT_CURRENCY[real]}), '
                              f'so it is counted as {LABEL[real]}.')
                 slot = real
-        if slot != 'inventory':
+        if slot not in ('inventory', 'inventory_fs'):
             dates[slot] = file_dates(slot, name, sheets)
         if kind != SLOT_KIND[slot]:
             raise FileError(f'{name}: this looks like a {kind.title()} file, but it was put in the {dict(SLOTS)[slot]} box.')
-        if kind == 'avixo':
+        if kind == 'avixo' and slot == 'inventory_fs':   # FirstStep's own Avixo report: kept apart from FirstWell's
+            fs_inv = parse_avixo(sheets); fs_inv['file'] = name
+            used.append(dict(file=name, kind="FirstStep's Avixo inventory", detail=fs_inv['when']))
+        elif kind == 'avixo':
             a = parse_avixo(sheets); a['file'] = name; avixos.append(a); used.append(dict(file=name, kind='Avixo inventory', detail=a['when']))
         elif kind == 'shopee':
             lines, placed = parse_shopee(sheets, name, slot)
@@ -493,6 +497,9 @@ def calculate(files, today=None, saved_links=None, aliases=None, ref=None):
                          check='; '.join(dict.fromkeys(checks[pid]))))
     rows.sort(key=lambda r: r['name'].lower())
     ref_out = None
+    if fs_inv:   # an uploaded FirstStep report is newer than the copy kept in FirstStep's Supabase, so it wins
+        ref = dict(label="FirstStep's Avixo", when=fs_inv['when'], source='upload', file=fs_inv['file'],
+                   products=[dict(id=p['id'], name=p['name'], unit=p['unit'], balance=p['balance'], batches=fs_inv['batches'].get(p['id'], [])) for p in fs_inv['products']])
     if ref and ref.get('products'):
         unmatched, ref_out = match_reference(ref, unmatched, ref_alias, saved_links, paired, today)
     used_ch = [c for c, _ in CHANNELS if any(l['channel'] == c for l in sales_lines)]

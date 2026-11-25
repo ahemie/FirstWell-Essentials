@@ -147,7 +147,7 @@ def read_uploads(sc):
             infos.append(dict(slot=slot, name=f.filename[:150], sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
     if not any(i['slot'] == 'inventory' for i in infos):
         raise sc.FileError('Choose the Avixo Inventory Report in the Inventory box.')
-    if len(infos) < 2:
+    if sum(i['slot'] not in ('inventory', 'inventory_fs') for i in infos) < 1:
         raise sc.FileError('Choose at least one sales file (Shopee or TikTok).')
     return parsed, infos
 
@@ -188,7 +188,7 @@ def saved_shopee_links():
 
 
 def sales_infos(infos):
-    return [dict(sha256=i['sha256'], name=i['name'], kind=i['slot']) for i in infos if i['slot'] != 'inventory']
+    return [dict(sha256=i['sha256'], name=i['name'], kind=i['slot']) for i in infos if i['slot'] not in ('inventory', 'inventory_fs')]
 
 
 @bp.post('/from-files')
