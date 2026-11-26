@@ -28,6 +28,12 @@
 .sa table > tbody > tr.hrow > td{background:#fff}
 .sa table > tbody > tr.hrow.zb > td{background:#edf1fb}
 .sa table > tbody > tr[id^="hd-"] > td{background:#fff;border:1px solid #d3d7e0}
+.sa th.tick,.sa td.tick{width:44px;text-align:center}
+.sa .sa-tick{width:18px;height:18px;cursor:pointer;accent-color:#0f3d33}
+/* Ticked row: the words are struck through and dimmed (buttons and the tick box stay normal) */
+.sa tr.done > td:not(.tick){text-decoration:line-through;color:#8a8a8a}
+.sa tr.done > td:not(.tick) b{color:#8a8a8a}
+.sa tr.done .sa-copy{text-decoration:none}
 .sa .neg-n{color:#b3261e;font-weight:700}
 .sa h2{font-size:17px;margin:24px 0 8px}
 .sa-search{min-height:40px;border:1px solid #b9b3a3;border-radius:8px;padding:0 10px;font:inherit;margin:0 0 10px;width:min(360px,100%)}
