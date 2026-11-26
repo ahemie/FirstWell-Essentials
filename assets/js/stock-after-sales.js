@@ -171,12 +171,21 @@ async function copyText(text, btn, done) {
 }
 // On the first draw of the table the date box does not exist yet, so fall back to the sales date found in the files.
 const salesDate = () => ($('salesDate') && $('salesDate').value) || (up && up.sales_date) || '';
-function upTable(rows) {
-  const ch = up.channels, iso = salesDate();
-  return '<div class="sa-wrap"><table><thead><tr><th>ID</th><th>Product</th><th class="num">Stock before</th>' + ch.map(c => `<th class="num">${esc(c.label)}</th>`).join('') +
+// Tick box per product: ticking strikes the row through (a quick way to mark what is already done in Avixo). Remembered in this browser.
+const DONE_KEY = 'sa_done';
+const doneList = () => { try { return JSON.parse(localStorage.getItem(DONE_KEY) || '[]'); } catch (e) { return []; } };
+const tickCell = (key, ds) => `<td class="tick"><input type="checkbox" class="sa-tick" data-key="${esc(key)}" aria-label="Mark as done"${ds.has(key) ? ' checked' : ''}></td>`;
+document.addEventListener('change', e => {
+  const t = e.target.closest && e.target.closest('.sa-tick'); if (!t) return;
+  t.closest('tr').classList.toggle('done', t.checked);
+  try { const l = doneList().filter(k => k !== t.dataset.key); if (t.checked) l.push(t.dataset.key); localStorage.setItem(DONE_KEY, JSON.stringify(l.slice(-3000))); } catch (err) { /* storage blocked: the tick still works until the page reloads */ }
+});
+function upTable(rows, kind) {   // kind 'fs' = rows from FirstStep's Avixo (their IDs can equal FirstWell IDs)
+  const ch = up.channels, iso = salesDate(), ds = new Set(doneList());
+  return '<div class="sa-wrap"><table><thead><tr><th class="tick">Done</th><th>ID</th><th>Product</th><th class="num">Stock before</th>' + ch.map(c => `<th class="num">${esc(c.label)}</th>`).join('') +
     '<th class="num">Total sold</th><th class="num">Stock after</th><th>Remark for Avixo</th><th></th><th>Take from expiry</th><th>Check</th></tr></thead><tbody>' +
-    rows.map(r => `<tr class="${r.after < 0 ? 'neg' : ''}"><td>${r.id}</td><td>${esc(r.name)}${r.unit ? ' <span class="sa-muted">(' + esc(r.unit) + ')</span>' : ''}</td><td class="num">${fmt(r.before)}</td>` +
-      ch.map(c => `<td class="num">${fmtq(r.sold[c.id])}</td>`).join('') + `<td class="num">${fmt(r.total)}</td><td class="num ${r.after < 0 ? 'neg-n' : ''}"><b>${fmt(r.after)}</b></td><td><b>${esc(remarkFor(r, iso))}</b></td><td><button type="button" class="sa-copy" data-remark="${esc(remarkFor(r, iso))}" title="Copy this remark">Copy</button></td><td>${esc(r.expiry)}</td><td class="${r.check ? 'chk' : ''}">${esc(r.check)}</td></tr>`).join('') +
+    rows.map(r => { const key = 'u:' + (kind || 'fw') + ':' + (iso || '-') + ':' + r.id; return `<tr class="${r.after < 0 ? 'neg' : ''}${ds.has(key) ? ' done' : ''}">${tickCell(key, ds)}<td>${r.id}</td><td>${esc(r.name)}${r.unit ? ' <span class="sa-muted">(' + esc(r.unit) + ')</span>' : ''}</td><td class="num">${fmt(r.before)}</td>` +
+      ch.map(c => `<td class="num">${fmtq(r.sold[c.id])}</td>`).join('') + `<td class="num">${fmt(r.total)}</td><td class="num ${r.after < 0 ? 'neg-n' : ''}"><b>${fmt(r.after)}</b></td><td><b>${esc(remarkFor(r, iso))}</b></td><td><button type="button" class="sa-copy" data-remark="${esc(remarkFor(r, iso))}" title="Copy this remark">Copy</button></td><td>${esc(r.expiry)}</td><td class="${r.check ? 'chk' : ''}">${esc(r.check)}</td></tr>`; }).join('') +
     '</tbody></table></div>';
 }
 const refRows = () => ((up && up.ref) || {}).rows || [];
@@ -196,7 +205,7 @@ function renderUp() {
   if (j.ref && refRows().length) {
     h += `<h2>Deduct from ${esc(j.ref.label)}</h2><p class="sa-muted">Sold on FirstWell but not in the uploaded Avixo report, found in FirstStep's Avixo instead. Update these in <b>FirstStep's Avixo</b>, not FirstWell's. Stock before = ${j.ref.source === 'upload' ? `the FirstStep Avixo report you uploaded (${esc(j.ref.when)})` : `FirstStep's last Avixo report in its dashboard (${esc(j.ref.when)}), so it may be a few weeks old. Upload FirstStep's latest Avixo report to use fresh stock`}.</p>` +
       '<div class="sa-actions"><button type="button" id="copyRemRef" class="alt">Copy these remarks</button><button type="button" id="copyTsvRef" class="alt">Copy this table</button><button type="button" id="dlCsvRef" class="alt">Download CSV</button></div>' +
-      '<div id="reftable">' + upTable(refRows()) + '</div>';
+      '<div id="reftable">' + upTable(refRows(), 'fs') + '</div>';
   }
   if (j.unmatched.length) {
     h += '<h2>Sold but not matched to an Avixo product</h2><p class="sa-muted">Pick the Avixo product for each listing' + (j.ref ? " — from the uploaded Avixo, or from <b>FirstStep's Avixo</b> (FS)" : '') + '. The pairing is saved, so this listing is matched automatically from now on, and the tables above update.</p>' +
@@ -216,7 +225,7 @@ function renderUp() {
     '<div class="sa-actions"><button type="button" id="saveBtn">Save to history</button></div></div>';
   $('upout').innerHTML = h;
   const bindCopy = () => document.querySelectorAll('#uptable .sa-copy, #reftable .sa-copy').forEach(b => b.onclick = () => copyText(b.dataset.remark, b));
-  $('salesDate').onchange = () => { $('uptable').innerHTML = up.rows.length ? upTable(up.rows) : ''; if ($('reftable')) $('reftable').innerHTML = upTable(refRows()); bindCopy(); };
+  $('salesDate').onchange = () => { $('uptable').innerHTML = up.rows.length ? upTable(up.rows) : ''; if ($('reftable')) $('reftable').innerHTML = upTable(refRows(), 'fs'); bindCopy(); };
   bindCopy();
   $('copyRem').onclick = () => copyText(up.rows.map(r => remarkFor(r, salesDate())).join('\n'), $('copyRem'), 'Copied ' + up.rows.length);
   if (j.can_save) $('saveBtn').onclick = saveNow;
@@ -295,9 +304,10 @@ async function openHist(id, btn) {
     // Same as the upload preview: products with 0 in Avixo before are not shown (a note names them).
     const hiddenNames = [...new Set(j.lines.filter(l => l.avixo_before != null && Number(l.avixo_before) === 0).map(l => l.avixo_id + ' ' + l.product))];
     j.lines = j.lines.filter(l => !(l.avixo_before != null && Number(l.avixo_before) === 0));
-    cell.innerHTML = '<div class="sa-actions"><button type="button" class="alt" data-csv="' + esc(id) + '">Download CSV</button></div><div class="sa-wrap"><table><thead><tr><th>Product</th><th>Platform</th><th class="num">Sold</th><th class="num">Avixo before → after</th><th>Remark for Avixo</th>' + (legacy ? '<th class="num">Deducted</th><th class="num">App before → after</th><th>Status</th>' : '') + '</tr></thead><tbody>' +
-      j.lines.map(l => `<tr><td>${esc(l.product)}</td><td>${esc(l.channel)}</td><td class="num">${fmt(l.sold)}</td><td class="num">${l.avixo_before == null ? '' : fmt(l.avixo_before) + ' → ' + fmt(l.avixo_after)}</td><td>${esc(histRemark(l) || '')}${histRemark(l) ? ' <button type="button" class="sa-copy" data-remark="' + esc(histRemark(l)) + '">Copy</button>' : ''}</td>` +
-        (legacy ? `<td class="num">${fmt(l.applied)}</td><td class="num">${l.app_before == null ? '' : fmt(l.app_before) + ' → ' + fmt(l.app_after)}</td><td>${esc(status(l))}</td>` : '') + '</tr>').join('') + '</tbody></table></div>';
+    const ds = new Set(doneList());
+    cell.innerHTML = '<div class="sa-actions"><button type="button" class="alt" data-csv="' + esc(id) + '">Download CSV</button></div><div class="sa-wrap"><table><thead><tr><th class="tick">Done</th><th>Product</th><th>Platform</th><th class="num">Sold</th><th class="num">Avixo before → after</th><th>Remark for Avixo</th>' + (legacy ? '<th class="num">Deducted</th><th class="num">App before → after</th><th>Status</th>' : '') + '</tr></thead><tbody>' +
+      j.lines.map(l => { const key = 'h:' + id + ':' + l.avixo_id + ':' + l.channel; return `<tr class="${ds.has(key) ? 'done' : ''}">${tickCell(key, ds)}<td>${esc(l.product)}</td><td>${esc(l.channel)}</td><td class="num">${fmt(l.sold)}</td><td class="num">${l.avixo_before == null ? '' : fmt(l.avixo_before) + ' → ' + fmt(l.avixo_after)}</td><td>${esc(histRemark(l) || '')}${histRemark(l) ? ' <button type="button" class="sa-copy" data-remark="' + esc(histRemark(l)) + '">Copy</button>' : ''}</td>` +
+        (legacy ? `<td class="num">${fmt(l.applied)}</td><td class="num">${l.app_before == null ? '' : fmt(l.app_before) + ' → ' + fmt(l.app_after)}</td><td>${esc(status(l))}</td>` : '') + '</tr>'; }).join('') + '</tbody></table></div>';
     if (hiddenNames.length) cell.insertAdjacentHTML('beforeend', `<div class="sa-note">Not shown: ${hiddenNames.length} sold product${hiddenNames.length > 1 ? 's' : ''} with 0 in Avixo before (${hiddenNames.map(esc).join(', ')}).</div>`);
     cell.querySelectorAll('.sa-copy').forEach(b => b.onclick = () => copyText(b.dataset.remark, b));
     cell.querySelector('[data-csv]').onclick = () => {
